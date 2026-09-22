@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     pdfText: '',
     pdfZoom: 1.0,
     readingMode: 'paged', // 'paged' | 'scroll'
+    pageTransition: 'none', // 'none' | 'fade' | 'slide'
+    navDirection: 1, // 1 = próxima, -1 = anterior
     chapterWordCount: 0,
     bookWordCount: 0
   };
@@ -146,6 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ttsVoiceApplyBtn = document.getElementById('tts-voice-apply-btn');
   const ttsPitchSlider = document.getElementById('tts-pitch-slider');
   const ttsPitchVal = document.getElementById('tts-pitch-val');
+  const ttsContinuousToggle = document.getElementById('tts-continuous-toggle');
   const ttsTimerBtns = document.querySelectorAll('.tts-timer-btn');
   const bionicToggle = document.getElementById('bionic-toggle');
   const linefocusToggle = document.getElementById('linefocus-toggle');
@@ -253,6 +256,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (saved.pdfZoom !== undefined) {
         state.pdfZoom = saved.pdfZoom;
       }
+      if (saved.ttsContinuous !== undefined) {
+        window.sereneTTS.autoContinue = saved.ttsContinuous;
+        if (ttsContinuousToggle) ttsContinuousToggle.checked = saved.ttsContinuous;
+      }
+      if (saved.pageTransition) state.pageTransition = saved.pageTransition;
     } else {
       applyTheme('paper');
     }
@@ -276,7 +284,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       lineFocusEnabled: window.sereneReadingModes ? window.sereneReadingModes.lineFocusEnabled : false,
       rulerEnabled: window.sereneReadingModes ? window.sereneReadingModes.rulerEnabled : false,
       readingMode: state.readingMode,
-      pdfZoom: state.pdfZoom
+      pdfZoom: state.pdfZoom,
+      pageTransition: state.pageTransition,
+      ttsContinuous: window.sereneTTS ? window.sereneTTS.autoContinue : false
     });
   }
 
@@ -400,8 +410,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function renderCurrentPage() {
-    pageContentEl.classList.remove('opacity-100');
-    pageContentEl.classList.add('opacity-0');
+    const transition = state.pageTransition || 'none';
+    if (transition === 'none') {
+      pageContentEl.style.transition = 'none';
+      pageContentEl.style.transform = 'none';
+      pageContentEl.style.opacity = '1';
+    } else if (transition === 'slide') {
+      pageContentEl.style.transition = 'transform 160ms ease, opacity 160ms ease';
+      pageContentEl.style.transform = state.navDirection > 0 ? 'translateX(24px)' : 'translateX(-24px)';
+      pageContentEl.style.opacity = '0';
+    } else {
+      pageContentEl.style.transition = 'opacity 120ms ease';
+      pageContentEl.style.transform = 'none';
+      pageContentEl.style.opacity = '0';
+    }
 
     setTimeout(async () => {
       if (state.isPdfMode) {
@@ -492,8 +514,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         nextBtn.style.opacity = state.currentPage === total - 1 ? "0.3" : "1";
       }
 
-      pageContentEl.classList.remove('opacity-0');
-      pageContentEl.classList.add('opacity-100');
+      if (state.pageTransition === 'none') {
+        pageContentEl.style.opacity = '1';
+        pageContentEl.style.transform = 'none';
+      } else if (state.pageTransition === 'slide') {
+        pageContentEl.style.transform = 'translateX(0)';
+        pageContentEl.style.opacity = '1';
+      } else {
+        pageContentEl.style.opacity = '1';
+      }
 
       if (state.currentBook && state.currentBook.id) {
         if (state.readingMode === 'scroll') {
@@ -510,6 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Navegação entre Páginas ---
   function nextPage() {
+    state.navDirection = 1;
     if (state.currentPage < state.pages.length - 1) {
       state.currentPage++;
       renderCurrentPage();
@@ -521,6 +551,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function prevPage() {
+    state.navDirection = -1;
     if (state.currentPage > 0) {
       state.currentPage--;
       renderCurrentPage();
@@ -815,6 +846,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.classList.add('opacity-70', 'border-current/20');
       }
     });
+
+    // Destacar botão de transição de página
+    document.querySelectorAll('.transition-btn').forEach(btn => {
+      if (btn.dataset.transition === state.pageTransition) {
+        btn.classList.add('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
+        btn.classList.remove('opacity-70', 'border-current/20');
+      } else {
+        btn.classList.remove('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
+        btn.classList.add('opacity-70', 'border-current/20');
+      }
+    });
   }
 
   // --- Gavetas (Drawer) UI ---
@@ -1088,6 +1130,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  document.querySelectorAll('.transition-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.pageTransition = btn.dataset.transition;
+      updateActiveButtonStates();
+      savePreferences();
+    });
+  });
+
   // --- Importação de Ficheiros (EPUB, PDF, TXT, MD, DOCX, CBZ, FB2) - múltiplos ---
   async function importSingleFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
@@ -1239,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         textToRead = tempDiv.textContent || '';
       }
 
+      window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
       window.sereneTTS.toggle(textToRead);
     });
 
@@ -1316,6 +1368,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   });
+
+  // --- Leitura Contínua (virar página automaticamente ao terminar o TTS) ---
+  function getPageTextToRead() {
+    if (state.isPdfMode) {
+      return state.pdfText || '';
+    }
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = state.pages[state.currentPage] || '';
+    return tempDiv.textContent || '';
+  }
+
+  if (ttsContinuousToggle) {
+    ttsContinuousToggle.addEventListener('change', (e) => {
+      window.sereneTTS.autoContinue = e.target.checked;
+      savePreferences();
+    });
+  }
+
+  window.sereneTTS.onEnd = () => {
+    if (!window.sereneTTS.autoContinue) return;
+    const total = state.pages.length;
+    if (state.currentPage < total - 1) {
+      // Avança para a próxima página
+      state.currentPage++;
+      renderCurrentPage();
+      setTimeout(() => {
+        if (window.sereneTTS.autoContinue) {
+          window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
+          window.sereneTTS.speak(getPageTextToRead());
+        }
+      }, 400);
+    } else if (state.currentBook && state.currentBook.chapters && state.currentChapter < state.currentBook.chapters.length - 1) {
+      // Avança para o próximo capítulo
+      state.currentChapter++;
+      state.currentPage = 0;
+      paginateAndRender();
+      setTimeout(() => {
+        if (window.sereneTTS.autoContinue) {
+          window.sereneTTS.speak(getPageTextToRead());
+        }
+      }, 600);
+    } else {
+      // Fim do livro
+      window.sereneTTS.autoContinue = false;
+      if (ttsContinuousToggle) ttsContinuousToggle.checked = false;
+      showToast('Fim do livro alcançado.', 'info');
+    }
+  };
 
   // --- Modos de Leitura ---
   if (bionicToggle) {
@@ -1745,6 +1845,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (confirm('Deseja restaurar todas as configurações visuais para o padrão? (Isto não apagará seus livros ou marcadores)')) {
         await window.sereneStorage.savePreference('user_settings', {
           theme: 'paper',
+          autoTheme: false,
           fontFamily: 'Literata',
           fontSize: 18,
           maxWidthClass: 'max-w-xl',
@@ -1756,7 +1857,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           bionicEnabled: false,
           lineFocusEnabled: false,
           rulerEnabled: false,
-          readingMode: 'paged'
+          readingMode: 'paged',
+          pageTransition: 'none',
+          ttsContinuous: false
         });
         window.location.reload();
       }

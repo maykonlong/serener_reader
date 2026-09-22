@@ -16,9 +16,45 @@ class SereneTTSEngine {
     this.voices = [];
     this.sleepTimer = null;
     this.sleepTimeoutEnd = null;
-    
+    this.autoContinue = false;
+    this.onEnd = null;       // Callback disparado quando a fala termina naturalmente
+    this.onBoundary = null;  // Callback para destaque palavra-a-palavra
+    this.currentCharIndex = 0;
+
     this.onStateChange = null; // Callback UI
     this.initVoices();
+    this.initMediaSession();
+  }
+
+  /**
+   * Configura a Media Session API para exibir controles de reprodução
+   * na tela de bloqueio / notificações do sistema.
+   */
+  initMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.setActionHandler('play', () => this.resume());
+      navigator.mediaSession.setActionHandler('pause', () => this.pause());
+      navigator.mediaSession.setActionHandler('stop', () => this.stop());
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+    } catch (e) {
+      console.warn('Media Session não suportada:', e);
+    }
+  }
+
+  /** Atualiza os metadados exibidos na tela de bloqueio. */
+  setMediaMetadata(title, artist) {
+    if (!('mediaSession' in navigator) || !window.MediaMetadata) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title || 'Serene Reader',
+        artist: artist || 'Leitura por voz',
+        album: 'Serene Reader'
+      });
+    } catch (e) {
+      console.warn('MediaMetadata não suportado:', e);
+    }
   }
 
   initVoices() {
@@ -131,10 +167,20 @@ class SereneTTSEngine {
       this.notifyStateChange('playing');
     };
 
+    this.utterance.onboundary = (e) => {
+      this.currentCharIndex = e.charIndex || 0;
+      if (typeof this.onBoundary === 'function') {
+        this.onBoundary(e.charIndex || 0);
+      }
+    };
+
     this.utterance.onend = () => {
       this.isPlaying = false;
       this.isPaused = false;
       this.notifyStateChange('ended');
+      if (typeof this.onEnd === 'function') {
+        this.onEnd();
+      }
     };
 
     this.utterance.onerror = (e) => {
@@ -142,6 +188,9 @@ class SereneTTSEngine {
       this.isPlaying = false;
       this.isPaused = false;
       this.notifyStateChange('stopped');
+      if (typeof this.onEnd === 'function') {
+        this.onEnd();
+      }
     };
 
     this.synth.speak(this.utterance);

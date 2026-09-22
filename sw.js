@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serene-reader-v7';
+const CACHE_NAME = 'serene-reader-v8';
 const ASSETS = [
   './',
   './index.html',

@@ -38,6 +38,8 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Tema Automático:** Alterne automaticamente entre claro (dia) e escuro (noite) conforme o horário.
 - **Mais Fontes e Vozes:** Novas tipografias (Atkinson Hyperlegible, Lexend, Vollkorn) e filtro de idioma no sintetizador de voz (TTS).
 - **Atalhos de Teclado:** Painel de ajuda com a tecla `?` para descobrir todos os atalhos.
+- **Leitura Contínua por Voz:** O TTS vira as páginas (e capítulos) automaticamente, com controles na tela de bloqueio via Media Session API.
+- **Transições de Página:** Escolha entre Nenhuma, Esmaecer ou Deslizar para a virada de página.
 
 ---
 
