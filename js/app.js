@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       textToPaginate = state.currentBook.content || '';
     }
 
-    state.pages = window.serenePaginator.paginate(textToPaginate, pageContentEl, {
+    state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
       fontFamily: state.fontFamily,
       fontSize: state.fontSize,
       maxWidthClass: state.maxWidthClass
