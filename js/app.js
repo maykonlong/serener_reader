@@ -1438,6 +1438,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- OCR (Reconhecimento de texto em PDF escaneado) ---
+  function loadTesseract() {
+    return new Promise((resolve, reject) => {
+      if (window.Tesseract) { resolve(window.Tesseract); return; }
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      script.onload = () => resolve(window.Tesseract);
+      script.onerror = () => reject(new Error('Falha ao carregar a biblioteca OCR.'));
+      document.head.appendChild(script);
+    });
+  }
+
   const ocrPageBtn = document.getElementById('ocr-page-btn');
   if (ocrPageBtn) {
     ocrPageBtn.addEventListener('click', async (e) => {
@@ -1446,15 +1457,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('O OCR está disponível apenas no modo PDF.', 'warning');
         return;
       }
-      if (typeof Tesseract === 'undefined') {
-        showToast('Biblioteca OCR não carregada.', 'error');
-        return;
-      }
 
       ocrPageBtn.disabled = true;
       ocrPageBtn.textContent = 'A processar...';
 
       try {
+        // Carregar tesseract.js sob demanda (evita bloquear o carregamento do app)
+        await loadTesseract();
+
         const pageNum = state.currentPage + 1;
         const canvas = await window.serenePDFReader.renderPageToCanvas(pageNum, 2.0);
         if (!canvas) {
