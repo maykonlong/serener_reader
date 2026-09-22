@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serene-reader-v14';
+const CACHE_NAME = 'serene-reader-v15';
 const ASSETS = [
   './',
   './index.html',
@@ -26,7 +26,10 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // Cachear cada asset individualmente para não falhar tudo se um falhar
+      return Promise.allSettled(
+        ASSETS.map((asset) => cache.add(asset).catch(() => {}))
+      );
     })
   );
 });
@@ -46,6 +49,33 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Ignorar requisições que não sejam GET
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+
+  // Para navegação (HTML) e CDN: sempre tentar a rede primeiro (network-first),
+  // para garantir que o usuário receba a versão mais recente do app.
+  const isNavigation = event.request.mode === 'navigate';
+  const isExternal = url.origin !== self.location.origin;
+
+  if (isNavigation || isExternal) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Atualizar o cache em segundo plano
+          if (isNavigation && response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((c) => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Para assets locais: cache-first
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
