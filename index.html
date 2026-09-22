@@ -393,6 +393,12 @@
         <div id="bookmarks-list" class="space-y-1.5">
           <!-- Injetado dinamicamente -->
         </div>
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70 pt-1">
+          Destaques (selecione texto no livro e escolha uma cor)
+        </label>
+        <div id="highlights-list" class="space-y-1.5">
+          <!-- Injetado dinamicamente -->
+        </div>
         <button id="export-notes-btn" class="w-full py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           Exportar Notas & Marcadores
@@ -444,9 +450,21 @@
         </div>
       </section>
 
+      <!-- Idioma -->
+      <section class="space-y-3 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          Idioma / Language / Idioma
+        </label>
+        <select id="language-select" class="w-full px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current outline-none focus:border-amber-500">
+          <option value="pt">Português</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </section>
+
       <!-- 7. Sincronização & Backup -->
       <section class="space-y-3 pt-2 border-t border-current/10 pb-2">
-        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70" data-i18n="sync_backup">
           7. Sincronização & Backup
         </label>
         <div class="flex gap-2">
@@ -671,6 +689,7 @@
   <script src="js/ambient.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/catalog.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Registro do Service Worker PWA -->

@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'SereneDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class SereneStorage {
   constructor() {
@@ -36,6 +36,12 @@ class SereneStorage {
         if (!db.objectStoreNames.contains('bookmarks')) {
           const bookmarkStore = db.createObjectStore('bookmarks', { keyPath: 'id', autoIncrement: true });
           bookmarkStore.createIndex('bookId', 'bookId', { unique: false });
+        }
+
+        // Tabela de Destaques (highlights coloridos)
+        if (!db.objectStoreNames.contains('highlights')) {
+          const highlightStore = db.createObjectStore('highlights', { keyPath: 'id', autoIncrement: true });
+          highlightStore.createIndex('bookId', 'bookId', { unique: false });
         }
       };
 
@@ -137,16 +143,28 @@ class SereneStorage {
   async deleteBook(id) {
     await this.ready();
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(['books', 'bookmarks'], 'readwrite');
+      const tx = this.db.transaction(['books', 'bookmarks', 'highlights'], 'readwrite');
       const bookStore = tx.objectStore('books');
       const bookmarkStore = tx.objectStore('bookmarks');
+      const highlightStore = tx.objectStore('highlights');
 
       bookStore.delete(id);
 
       // Deletar marcadores associados
-      const index = bookmarkStore.index('bookId');
-      const request = index.openCursor(IDBKeyRange.only(id));
-      request.onsuccess = (e) => {
+      const bmIndex = bookmarkStore.index('bookId');
+      const bmRequest = bmIndex.openCursor(IDBKeyRange.only(id));
+      bmRequest.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          cursor.delete();
+          cursor.continue();
+        }
+      };
+
+      // Deletar destaques associados
+      const hlIndex = highlightStore.index('bookId');
+      const hlRequest = hlIndex.openCursor(IDBKeyRange.only(id));
+      hlRequest.onsuccess = (e) => {
         const cursor = e.target.result;
         if (cursor) {
           cursor.delete();
@@ -227,6 +245,50 @@ class SereneStorage {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('bookmarks', 'readwrite');
       const store = tx.objectStore('bookmarks');
+      const request = store.delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  // --- Operações de Destaques ---
+
+  async addHighlight(highlight) {
+    await this.ready();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('highlights', 'readwrite');
+      const store = tx.objectStore('highlights');
+      const data = {
+        bookId: highlight.bookId,
+        chapterIndex: highlight.chapterIndex || 0,
+        pageIndex: highlight.pageIndex || 0,
+        text: highlight.text || '',
+        color: highlight.color || 'yellow',
+        createdAt: Date.now()
+      };
+      const request = store.add(data);
+      request.onsuccess = () => resolve({ ...data, id: request.result });
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async getHighlights(bookId) {
+    await this.ready();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('highlights', 'readonly');
+      const store = tx.objectStore('highlights');
+      const index = store.index('bookId');
+      const request = index.getAll(IDBKeyRange.only(bookId));
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  async removeHighlight(id) {
+    await this.ready();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('highlights', 'readwrite');
+      const store = tx.objectStore('highlights');
       const request = store.delete(id);
       request.onsuccess = () => resolve(true);
       request.onerror = (e) => reject(e.target.error);

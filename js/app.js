@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const bookDetailsTags = document.getElementById('book-details-tags');
   const bookDetailsOpenBtn = document.getElementById('book-details-open-btn');
   const bookDetailsSaveBtn = document.getElementById('book-details-save-btn');
+  const languageSelect = document.getElementById('language-select');
 
   const ttsPlayBtn = document.getElementById('tts-play-btn');
   const ttsRateSlider = document.getElementById('tts-rate-slider');
@@ -279,6 +280,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (ttsContinuousToggle) ttsContinuousToggle.checked = saved.ttsContinuous;
       }
       if (saved.pageTransition) state.pageTransition = saved.pageTransition;
+      if (saved.language) {
+        if (window.sereneI18n) {
+          window.sereneI18n.setLang(saved.language);
+          if (languageSelect) languageSelect.value = saved.language;
+        }
+      }
     } else {
       applyTheme('paper');
     }
@@ -304,7 +311,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       readingMode: state.readingMode,
       pdfZoom: state.pdfZoom,
       pageTransition: state.pageTransition,
-      ttsContinuous: window.sereneTTS ? window.sereneTTS.autoContinue : false
+      ttsContinuous: window.sereneTTS ? window.sereneTTS.autoContinue : false,
+      language: window.sereneI18n ? window.sereneI18n.lang : 'pt'
     });
   }
 
@@ -360,6 +368,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderTocDrawer();
     renderBookmarksList();
+    await loadHighlights();
+    renderHighlightsList();
   }
 
   // --- Paginação e Renderização ---
@@ -484,6 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         applySearchHighlight();
+        applyHighlights();
       }
 
       const total = state.pages.length;
@@ -2258,6 +2269,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchCount) searchCount.textContent = '';
   }
 
+  // --- Destaques coloridos (highlights) ---
+  let currentHighlights = [];
+
+  function highlightTextNodes(text, color) {
+    const walker = document.createTreeWalker(pageContentEl, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentNode && (n.parentNode.tagName === 'MARK' || n.parentNode.tagName === 'SPAN' && n.parentNode.classList.contains('tts-word'))) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+    });
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    const escaped = escapeRegExp(text);
+    if (!escaped) return;
+    const regex = new RegExp(`(${escaped})`, 'g');
+    textNodes.forEach(node => {
+      const nodeText = node.nodeValue;
+      regex.lastIndex = 0;
+      if (!regex.test(nodeText)) { regex.lastIndex = 0; return; }
+      regex.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let lastIndex = 0;
+      let m;
+      while ((m = regex.exec(nodeText)) !== null) {
+        if (m.index > lastIndex) frag.appendChild(document.createTextNode(nodeText.slice(lastIndex, m.index)));
+        const mark = document.createElement('mark');
+        mark.className = `hl-${color}`;
+        mark.textContent = m[0];
+        frag.appendChild(mark);
+        lastIndex = m.index + m[0].length;
+        if (m.index === regex.lastIndex) regex.lastIndex++;
+      }
+      if (lastIndex < nodeText.length) frag.appendChild(document.createTextNode(nodeText.slice(lastIndex)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  async function loadHighlights() {
+    if (!state.currentBook) { currentHighlights = []; return; }
+    currentHighlights = await window.sereneStorage.getHighlights(state.currentBook.id);
+  }
+
+  function applyHighlights() {
+    if (!currentHighlights || currentHighlights.length === 0) return;
+    const chapterHighlights = currentHighlights.filter(h => (h.chapterIndex || 0) === state.currentChapter);
+    chapterHighlights.forEach(h => {
+      if (h.text && h.text.trim()) {
+        highlightTextNodes(h.text.trim(), h.color);
+      }
+    });
+  }
+
+  window.sereneReaderAddHighlight = async (text, color) => {
+    if (!state.currentBook || !text) return;
+    await window.sereneStorage.addHighlight({
+      bookId: state.currentBook.id,
+      chapterIndex: state.currentChapter,
+      pageIndex: state.currentPage,
+      text: text,
+      color: color
+    });
+    await loadHighlights();
+    showToast('Destaque salvo!', 'success');
+    renderHighlightsList();
+  };
+
+  window.removeHighlightFromBook = async (id) => {
+    await window.sereneStorage.removeHighlight(id);
+    await loadHighlights();
+    renderHighlightsList();
+    if (!state.isPdfMode) renderCurrentPage();
+  };
+
+  async function renderHighlightsList() {
+    const listEl = document.getElementById('highlights-list');
+    if (!listEl || !state.currentBook) return;
+    const highlights = await window.sereneStorage.getHighlights(state.currentBook.id);
+    if (highlights.length === 0) {
+      listEl.innerHTML = '<p class="text-xs opacity-50 italic">Sem destaques neste livro.</p>';
+      return;
+    }
+    const colorDot = { yellow: '#fbbf24', green: '#34d399', blue: '#60a5fa', pink: '#f472b6' };
+    listEl.innerHTML = highlights.map(h => `
+      <div class="p-2 border border-current/20 rounded-lg flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2 truncate">
+          <span class="inline-block w-3 h-3 rounded-full shrink-0" style="background:${colorDot[h.color] || '#fbbf24'}"></span>
+          <span class="truncate">${h.text}</span>
+        </div>
+        <button onclick="window.removeHighlightFromBook(${h.id})" class="text-red-500 hover:text-red-700 p-1 font-bold shrink-0">×</button>
+      </div>
+    `).join('');
+  }
+
   function applySearchHighlight() {
     if (!searchState.term) return;
     const walker = document.createTreeWalker(pageContentEl, NodeFilter.SHOW_TEXT, {
@@ -2319,6 +2420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       exportBackupBtn.textContent = 'Aguarde...';
       try {
         await window.sereneSyncEngine.exportBackup();
+        await window.sereneStorage.savePreference('last_backup_date', Date.now());
         showToast('Backup exportado com sucesso!', 'success');
       } catch (e) {
         showToast(e.message, 'error');
@@ -2327,6 +2429,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  // --- Lembrete de Backup (a cada 7 dias) ---
+  (async function checkBackupReminder() {
+    try {
+      const last = await window.sereneStorage.getPreference('last_backup_date', null);
+      const daysSince = last ? Math.floor((Date.now() - last) / (1000 * 60 * 60 * 24)) : null;
+      if (daysSince === null) {
+        // Primeira vez: não incomodar ainda
+        await window.sereneStorage.savePreference('last_backup_date', Date.now());
+      } else if (daysSince >= 7) {
+        showToast('Já faz ' + daysSince + ' dias desde o último backup. Considere exportar seus dados!', 'warning', 6000);
+      }
+    } catch (e) {
+      console.warn('Erro ao verificar lembrete de backup:', e);
+    }
+  })();
 
   if (importBackupInput) {
     importBackupInput.addEventListener('change', async (e) => {
@@ -2398,9 +2516,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // --- Seletor de Idioma ---
+  if (languageSelect) {
+    languageSelect.addEventListener('change', (e) => {
+      if (window.sereneI18n) {
+        window.sereneI18n.setLang(e.target.value);
+      }
+      savePreferences();
+    });
+  }
+
   // --- Inicialização ---
   await loadPreferences();
   await applyTypography();
   await loadInitialBook();
   if (state.autoTheme) applyAutoTheme();
+  // Aplicar i18n ao carregar (caso ainda não tenha sido aplicado)
+  if (window.sereneI18n) window.sereneI18n.apply();
 });

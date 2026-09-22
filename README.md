@@ -47,6 +47,9 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **File System Access:** Abra e salve arquivos diretamente do sistema (onde o navegador suportar).
 - **Catálogo de Domínio Público:** Busque e baixe milhares de livros gratuitos do Project Gutenberg (EPUB/TXT) diretamente para a biblioteca.
 - **OCR (tesseract.js):** Reconheça texto de PDFs escaneados e imagens, permitindo ouvir páginas que não têm texto digital.
+- **Destaques Coloridos:** Selecione texto no livro e marque com 4 cores (amarelo, verde, azul, rosa), com lista e remoção.
+- **Backup com Lembrete:** Lembra automaticamente de exportar seus dados a cada 7 dias.
+- **Idioma da Interface:** Português, Inglês e Espanhol (i18n).
 
 ---
 
