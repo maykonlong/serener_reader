@@ -148,6 +148,96 @@ class SerenePaginator {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  /**
+   * Pagina conteúdo HTML (preservando imagens, títulos, negrito, listas, etc.)
+   * Diferente de paginate(), este método NÃO escapa o HTML — ele o mede e
+   * fatia por blocos de nível superior (p, h1-h6, img, div, figure, ul, ol, table).
+   * @param {string} html - Conteúdo HTML (já sanitizado pelos parsers)
+   * @param {HTMLElement} containerEl
+   * @param {Object} options - { fontFamily, fontSize, lineHeight, paragraphSpacing, textAlign }
+   * @returns {Array<string>}
+   */
+  paginateHtml(html, containerEl, options = {}) {
+    this.ensureMeasurer();
+
+    if (!html || typeof html !== 'string' || html.trim() === '') {
+      return ['<p class="text-center italic opacity-60">Nenhum conteúdo disponível.</p>'];
+    }
+
+    const rect = containerEl.getBoundingClientRect();
+    const computedStyle = window.getComputedStyle(containerEl);
+    const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const availableHeight = (rect.height || containerEl.clientHeight || 500) - paddingTop - paddingBottom - 16;
+    const availableWidth = rect.width || containerEl.clientWidth || 400;
+
+    const lineHeight = options.lineHeight || 1.7;
+    const paraSpacing = (options.paragraphSpacing !== undefined && options.paragraphSpacing !== null) ? options.paragraphSpacing : 20;
+    const textAlign = options.textAlign || 'justify';
+
+    this.measurer.style.width = `${availableWidth}px`;
+    this.measurer.style.fontFamily = options.fontFamily ? `"${options.fontFamily}", Georgia, serif` : computedStyle.fontFamily;
+    this.measurer.style.fontSize = options.fontSize ? `${options.fontSize}px` : computedStyle.fontSize;
+    this.measurer.style.lineHeight = String(lineHeight);
+    this.measurer.style.textAlign = textAlign;
+
+    // Dividir o HTML em blocos de nível superior
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const blockNodes = Array.from(doc.body.childNodes);
+    const blocks = [];
+    for (const node of blockNodes) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const t = node.textContent.trim();
+        if (t) blocks.push(`<p>${this.escapeHtml(t)}</p>`);
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === 'script' || tag === 'style') continue;
+        const raw = node.outerHTML || node.textContent || '';
+        if (raw.trim()) blocks.push(raw);
+      }
+    }
+
+    if (blocks.length === 0) {
+      return ['<p class="text-center italic opacity-60">Nenhum conteúdo disponível.</p>'];
+    }
+
+    const pages = [];
+    let currentAcc = [];
+    this.measurer.innerHTML = '';
+
+    for (let i = 0; i < blocks.length; i++) {
+      const wrap = `<div style="margin:0 0 ${paraSpacing}px 0; line-height:${lineHeight}; text-align:${textAlign};">${blocks[i]}</div>`;
+
+      const testHTML = [...currentAcc, wrap].join('');
+      this.measurer.innerHTML = testHTML;
+
+      if (this.measurer.scrollHeight <= availableHeight) {
+        currentAcc.push(wrap);
+      } else {
+        if (currentAcc.length > 0) {
+          pages.push(currentAcc.join(''));
+          currentAcc = [];
+          this.measurer.innerHTML = '';
+        }
+
+        // Bloco sozinho maior que a página (ex.: imagem muito grande)
+        this.measurer.innerHTML = wrap;
+        if (this.measurer.scrollHeight <= availableHeight) {
+          currentAcc.push(wrap);
+        } else {
+          // Forçar encaixe: empurra o bloco para a própria página
+          pages.push(wrap);
+        }
+      }
+    }
+
+    if (currentAcc.length > 0) {
+      pages.push(currentAcc.join(''));
+    }
+
+    return pages.length > 0 ? pages : ['<p class="text-center opacity-60">Fim do conteúdo.</p>'];
+  }
 }
 
 window.serenePaginator = new SerenePaginator();

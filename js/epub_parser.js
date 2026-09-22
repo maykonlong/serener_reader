@@ -10,6 +10,30 @@ class SereneEPUBParser {
   }
 
   /**
+   * Resolve um caminho relativo de imagem a partir do diretório do capítulo.
+   * Ex.: ('OEBPS/text/', '../images/cover.jpg') => 'OEBPS/images/cover.jpg'
+   * @private
+   */
+  _resolvePath(baseDir, relativePath) {
+    if (!relativePath) return relativePath;
+    // Remove fragmentos (#anchor) e query strings
+    const clean = relativePath.split('#')[0].split('?')[0];
+    if (!baseDir) return clean;
+    const combined = baseDir + clean;
+    const parts = combined.split('/');
+    const stack = [];
+    for (const part of parts) {
+      if (part === '' || part === '.') continue;
+      if (part === '..') {
+        stack.pop();
+      } else {
+        stack.push(part);
+      }
+    }
+    return stack.join('/');
+  }
+
+  /**
    * Processa o ArrayBuffer de um ficheiro .epub
    * @param {ArrayBuffer} arrayBuffer
    * @returns {Promise<Object>} - { title, author, cover, chapters: [{ title, content }], rawText }
@@ -88,26 +112,48 @@ class SereneEPUBParser {
           // Limpar scripts e estilos do capítulo
           chapterDoc.querySelectorAll('script, style').forEach(el => el.remove());
 
-          // Extrair texto limpo dos parágrafos
-          const paragraphs = [];
-          const pNodes = chapterDoc.querySelectorAll('p, h1, h2, h3, h4, li');
-          if (pNodes.length > 0) {
-            pNodes.forEach(p => {
-              const txt = p.textContent.trim();
-              if (txt) paragraphs.push(txt);
-            });
-          } else {
-            const bodyText = chapterDoc.body ? chapterDoc.body.textContent.trim() : '';
-            if (bodyText) paragraphs.push(bodyText);
+          // Diretório base do capítulo para resolver caminhos relativos de imagens
+          const chapterDir = fullHref.includes('/') ? fullHref.substring(0, fullHref.lastIndexOf('/') + 1) : '';
+
+          // Converter imagens internas para base64 (data URI) preservando-as
+          const imgNodes = chapterDoc.querySelectorAll('img');
+          for (const img of imgNodes) {
+            const src = img.getAttribute('src') || img.getAttribute('xlink:href') || '';
+            if (!src || src.startsWith('data:')) continue;
+            try {
+              const resolved = this._resolvePath(chapterDir, src);
+              const imgFile = zip.file(resolved) || zip.file(decodeURIComponent(resolved));
+              if (imgFile) {
+                const base64 = await imgFile.async('base64');
+                const ext = resolved.split('.').pop().toLowerCase();
+                const mimeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
+                const mime = mimeMap[ext] || 'image/jpeg';
+                img.setAttribute('src', `data:${mime};base64,${base64}`);
+              }
+            } catch (e) {
+              console.warn('Imagem não pôde ser convertida:', e);
+            }
           }
 
-          const chapterCleanText = paragraphs.join('\n\n');
-          if (chapterCleanText) {
+          // Extrair o conteúdo HTML do corpo (preservando imagens e formatação)
+          let bodyHtml = '';
+          const body = chapterDoc.body;
+          if (body) {
+            bodyHtml = body.innerHTML;
+          } else {
+            bodyHtml = chapterDoc.documentElement ? chapterDoc.documentElement.innerHTML : '';
+          }
+
+          const cleanHtml = DOMPurify.sanitize(bodyHtml);
+          const plainText = (chapterDoc.body ? chapterDoc.body.textContent : '').trim();
+
+          if (cleanHtml.trim() || plainText) {
             chapters.push({
               title: chapTitle,
-              content: chapterCleanText
+              content: cleanHtml.trim() || `<p>${plainText}</p>`,
+              contentType: 'html'
             });
-            fullTextAccumulator += (fullTextAccumulator ? '\n\n' : '') + chapterCleanText;
+            fullTextAccumulator += (fullTextAccumulator ? '\n\n' : '') + (plainText || cleanHtml.replace(/<[^>]*>/g, ' '));
           }
         } catch (err) {
           console.warn(`Erro ao ler capítulo ${fullHref}:`, err);
@@ -149,7 +195,8 @@ class SereneEPUBParser {
       cover,
       chapters,
       toc: chapters.map((c, idx) => ({ index: idx, title: c.title })),
-      rawText: fullTextAccumulator
+      rawText: fullTextAccumulator,
+      contentType: 'html'
     };
   }
 }

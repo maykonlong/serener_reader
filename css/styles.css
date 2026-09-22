@@ -29,6 +29,60 @@ html, body {
   word-break: break-word;
 }
 
+/* Imagens internas dos livros (EPUB, DOCX, CBZ, Markdown, FB2) */
+#page-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.5rem auto;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.25);
+}
+
+/* Blocos de conteúdo HTML preservados pelo paginador */
+#page-content figure {
+  max-width: 100%;
+  margin: 0.5rem auto;
+  text-align: center;
+}
+
+#page-content figcaption {
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-top: 0.35rem;
+}
+
+/* Cabeçalhos dentro de conteúdo HTML */
+#page-content h1, #page-content h2, #page-content h3, #page-content h4 {
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.6em 0 0.4em;
+}
+
+/* Listas dentro de conteúdo HTML */
+#page-content ul, #page-content ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+#page-content li {
+  margin: 0.2em 0;
+}
+
+/* Tabelas dentro de conteúdo HTML */
+#page-content table {
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0.5em auto;
+  font-size: 0.9em;
+}
+
+#page-content th, #page-content td {
+  border: 1px solid currentColor;
+  padding: 0.3em 0.6em;
+  opacity: 0.85;
+}
+
 /* Hierarquia Estrita de Z-Index para evitar que o Backdrop intercepte cliques nas Gavetas */
 #amber-overlay {
   z-index: 40 !important;

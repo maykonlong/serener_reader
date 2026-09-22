@@ -97,6 +97,7 @@ class SereneURLReader {
         title: article.title || 'Artigo da Web',
         author: article.byline || new URL(url).hostname,
         content: finalContent,
+        contentType: 'text',
         format: 'article',
         sourceUrl: url
       };

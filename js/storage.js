@@ -70,6 +70,7 @@ class SereneStorage {
         format: bookData.format || 'txt',
         content: bookData.content, // String (txt) ou ArrayBuffer/Blob (epub/pdf)
         cover: bookData.cover || null,
+        contentType: bookData.contentType || (bookData.format === 'txt' ? 'text' : 'html'),
         addedAt: bookData.addedAt || Date.now(),
         lastReadAt: Date.now(),
         currentPage: bookData.currentPage || 0,

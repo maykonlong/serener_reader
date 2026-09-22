@@ -13,12 +13,14 @@ class SereneFormatParsers {
       title: 'Documento Markdown',
       author: 'Arquivo Local',
       content: cleanHtml,
+      contentType: 'html',
       format: 'md'
     };
   }
 
   async parseDOCX(buffer) {
-    // Usa mammoth.js para ler DOCX e extrair o HTML
+    // Usa mammoth.js para ler DOCX. Por padrão, o mammoth já embute as imagens
+    // como data URIs inline (mammoth.images.dataUri é o conversor default).
     try {
       const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
       const cleanHtml = DOMPurify.sanitize(result.value);
@@ -26,6 +28,7 @@ class SereneFormatParsers {
         title: 'Documento Word (DOCX)',
         author: 'Arquivo Local',
         content: cleanHtml,
+        contentType: 'html',
         format: 'docx'
       };
     } catch (err) {
@@ -65,6 +68,7 @@ class SereneFormatParsers {
       title,
       author,
       content: cleanHtml,
+      contentType: 'html',
       format: 'fb2'
     };
   }
@@ -98,6 +102,7 @@ class SereneFormatParsers {
       title: 'Quadrinho / Mangá (CBZ)',
       author: 'Arquivo Local',
       content: htmlContent,
+      contentType: 'html',
       format: 'cbz'
     };
   }

@@ -15,6 +15,7 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Tipografia Ajustável:** Controle fino de tamanho da fonte, espaçamento entre linhas, espaço entre parágrafos e alinhamento (justificado/esquerda).
 - **Leitura Imersiva:** Esconda as barras superiores e inferiores com um toque (ou tecla `I`) para leitura sem distrações.
 - **Estimativa de Tempo Restante:** Veja quantos minutos faltam para terminar o capítulo com base no seu ritmo real de leitura.
+- **Imagens Integradas:** Ilustrações e figuras internas aparecem nos livros (EPUB, DOCX, CBZ, Markdown, FB2), convertidas para base64 localmente — sem depender de internet.
 
 ### ⚡ Retenção de Foco e Acessibilidade
 - **Sintetizador de Voz (TTS):** Escute seus livros com as vozes nativas do sistema. Possui Sleep Timer de até 30min para desligar automaticamente.

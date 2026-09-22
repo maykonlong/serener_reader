@@ -331,15 +331,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let textToPaginate = '';
+    let contentType = state.currentBook.contentType || 'text';
     if (state.currentBook.chapters && state.currentBook.chapters.length > 0) {
       const chapter = state.currentBook.chapters[state.currentChapter] || state.currentBook.chapters[0];
       textToPaginate = chapter.content;
+      if (chapter.contentType) contentType = chapter.contentType;
     } else {
       textToPaginate = state.currentBook.content || '';
     }
 
     // Contagem de palavras do capítulo atual para a estimativa de tempo restante
     state.chapterWordCount = (textToPaginate.replace(/<[^>]*>/g, ' ').match(/[\wÀ-ÿ'-]+/g) || []).length;
+
+    const paginateOptions = {
+      fontFamily: state.fontFamily,
+      fontSize: state.fontSize,
+      maxWidthClass: state.maxWidthClass,
+      lineHeight: state.lineHeight,
+      paragraphSpacing: state.paragraphSpacing,
+      textAlign: state.textAlign
+    };
 
     state.pages = [];
     if (state.readingMode === 'scroll') {
@@ -352,15 +363,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       if (state.isPdfMode) {
         state.pages = new Array(window.serenePDFReader.numPages).fill('');
+      } else if (contentType === 'html') {
+        state.pages = window.serenePaginator.paginateHtml(textToPaginate, readingContainerEl, paginateOptions);
       } else {
-        state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
-          fontFamily: state.fontFamily,
-          fontSize: state.fontSize,
-          maxWidthClass: state.maxWidthClass,
-          lineHeight: state.lineHeight,
-          paragraphSpacing: state.paragraphSpacing,
-          textAlign: state.textAlign
-        });
+        state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, paginateOptions);
       }
     }
 
@@ -1052,6 +1058,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             format: 'epub',
             content: parsedEPUB.rawText,
             cover: parsedEPUB.cover,
+            contentType: parsedEPUB.contentType || 'html',
             toc: parsedEPUB.toc,
             chapters: parsedEPUB.chapters
           };
