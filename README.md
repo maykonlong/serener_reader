@@ -45,6 +45,7 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Exportação de Notas:** Exporte suas notas e marcadores do livro em Markdown.
 - **Coleções & Etiquetas:** Organize livros com etiquetas (tags), filtre a biblioteca e veja detalhes com avaliação por estrelas e estado (não lido / a ler / concluído).
 - **File System Access:** Abra e salve arquivos diretamente do sistema (onde o navegador suportar).
+- **Catálogo de Domínio Público:** Busque e baixe milhares de livros gratuitos do Project Gutenberg (EPUB/TXT) diretamente para a biblioteca.
 
 ---
 

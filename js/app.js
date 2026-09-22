@@ -139,6 +139,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const librarySearchInput = document.getElementById('library-search-input');
   const librarySortSelect = document.getElementById('library-sort-select');
   const libraryTagFilter = document.getElementById('library-tag-filter');
+  const catalogSearchInput = document.getElementById('catalog-search-input');
+  const catalogSearchBtn = document.getElementById('catalog-search-btn');
+  const catalogResults = document.getElementById('catalog-results');
   const shortcutsModal = document.getElementById('shortcuts-modal');
   const shortcutsCloseBtn = document.getElementById('shortcuts-close-btn');
 
@@ -1694,6 +1697,107 @@ document.addEventListener('DOMContentLoaded', async () => {
       a.remove();
       URL.revokeObjectURL(url);
       showToast('Notas exportadas como Markdown.', 'success');
+    });
+  }
+
+  // --- Catálogo de Domínio Público (Project Gutenberg) ---
+  async function renderCatalogResults(query) {
+    if (!catalogResults) return;
+    catalogResults.innerHTML = '<p class="text-xs opacity-50 italic text-center py-4">Buscando...</p>';
+    try {
+      const books = await window.sereneCatalog.search(query, 1);
+      if (books.length === 0) {
+        catalogResults.innerHTML = '<p class="text-xs opacity-50 italic text-center py-4">Nenhum livro encontrado.</p>';
+        return;
+      }
+      catalogResults.innerHTML = books.slice(0, 20).map(b => {
+        const author = (b.authors && b.authors[0] && b.authors[0].name) || 'Desconhecido';
+        const hasEpub = !!(b.formats && b.formats['application/epub+zip']);
+        const hasTxt = !!(b.formats && (b.formats['text/plain; charset=utf-8'] || b.formats['text/plain; charset=us-ascii']));
+        return `
+          <div class="p-2.5 border border-current/20 rounded-lg">
+            <div class="flex items-start justify-between gap-2">
+              <div class="overflow-hidden">
+                <h4 class="font-bold text-xs truncate">${b.title}</h4>
+                <p class="text-[11px] opacity-70 truncate">${author}</p>
+                <p class="text-[10px] opacity-50">⬇ ${b.download_count || 0} downloads</p>
+              </div>
+              <button data-catalog-id="${b.id}" class="catalog-download-btn px-2.5 py-1.5 text-[10px] rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">
+                ${hasEpub ? 'Baixar EPUB' : (hasTxt ? 'Baixar TXT' : '—')}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      catalogResults.querySelectorAll('.catalog-download-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = parseInt(btn.dataset.catalogId);
+          // Buscar o livro específico pelo id
+          const target = await window.sereneCatalog.searchById(id);
+          if (!target) return;
+
+          btn.disabled = true;
+          btn.textContent = 'A baixar...';
+          try {
+            const dl = await window.sereneCatalog.download(target);
+            let newBookData;
+            if (dl.format === 'epub') {
+              const parsed = await window.sereneEPUBParser.parse(dl.arrayBuffer);
+              newBookData = {
+                title: parsed.title || dl.title,
+                author: parsed.author || dl.author,
+                format: 'epub',
+                content: parsed.rawText,
+                cover: parsed.cover,
+                contentType: parsed.contentType || 'html',
+                toc: parsed.toc,
+                chapters: parsed.chapters
+              };
+            } else {
+              newBookData = {
+                title: dl.title,
+                author: dl.author,
+                format: 'txt',
+                content: dl.text,
+                contentType: 'text'
+              };
+            }
+
+            const allBooks = await window.sereneStorage.getAllBooks();
+            const existing = allBooks.find(x => x.title === newBookData.title);
+            if (existing) newBookData.id = existing.id;
+
+            const saved = await window.sereneStorage.saveBook(newBookData);
+            renderLibrary();
+            showToast(`"${saved.title}" adicionado à biblioteca!`, 'success');
+          } catch (err) {
+            showToast('Erro ao baixar livro: ' + err.message, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Baixar';
+          }
+        });
+      });
+    } catch (err) {
+      catalogResults.innerHTML = '<p class="text-xs opacity-50 italic text-center py-4">Erro ao buscar.</p>';
+      console.warn('Erro no catálogo:', err);
+    }
+  }
+
+  if (catalogSearchBtn) {
+    catalogSearchBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      renderCatalogResults(catalogSearchInput.value);
+    });
+  }
+  if (catalogSearchInput) {
+    catalogSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.stopPropagation();
+        renderCatalogResults(catalogSearchInput.value);
+      }
     });
   }
 

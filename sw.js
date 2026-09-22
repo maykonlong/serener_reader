@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serene-reader-v10';
+const CACHE_NAME = 'serene-reader-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './js/tts_engine.js',
   './js/ambient.js',
   './js/stats.js',
+  './js/catalog.js',
   './js/app.js',
   './manifest.json'
 ];
