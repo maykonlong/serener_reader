@@ -426,13 +426,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function applyTypography() {
+    const fontFamilyStr = state.fontFamily === 'OpenDyslexic' 
+      ? `'Open Dyslexic', 'Comic Sans MS', sans-serif`
+      : `"${state.fontFamily}", Georgia, serif`;
+    
+    // Aplica a fonte globalmente para que os menus também fiquem agradáveis
+    root.style.fontFamily = fontFamilyStr;
+
     if (state.fontFamily === 'OpenDyslexic') {
       pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto font-opendyslexic`;
-      pageContentEl.style.fontFamily = `'Open Dyslexic', 'Comic Sans MS', sans-serif`;
     } else {
       pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto`;
-      pageContentEl.style.fontFamily = `"${state.fontFamily}", Georgia, serif`;
     }
+    
+    pageContentEl.style.fontFamily = fontFamilyStr;
     pageContentEl.style.fontSize = `${state.fontSize}px`;
     readingContainerEl.className = `w-full h-full flex flex-col justify-between px-6 sm:px-12 py-4 mx-auto overflow-hidden ${state.maxWidthClass}`;
 
