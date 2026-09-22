@@ -35,13 +35,26 @@ class SereneURLReader {
         throw new Error("Não foi possível encontrar um artigo legível nesta página.");
       }
       
-      // 4. Sanitize the extracted HTML
-      const cleanContent = DOMPurify.sanitize(article.content);
+      // 4. Sanitize and extract plain text from HTML
+      const cleanHtml = DOMPurify.sanitize(article.content);
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = cleanHtml;
+      
+      const paragraphs = [];
+      tempDiv.querySelectorAll('p, h1, h2, h3, h4, li').forEach(el => {
+        const txt = el.textContent.trim();
+        if (txt) paragraphs.push(txt);
+      });
+      
+      let finalContent = paragraphs.join('\n\n');
+      if (!finalContent) {
+        finalContent = tempDiv.textContent.trim();
+      }
       
       return {
         title: article.title || 'Artigo da Web',
         author: article.byline || new URL(url).hostname,
-        content: cleanContent,
+        content: finalContent,
         format: 'article',
         sourceUrl: url
       };
