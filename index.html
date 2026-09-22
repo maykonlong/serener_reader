@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-PT" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SereneReader - Leitor Ergonómico Sem Fadiga Visual</title>
+
+  <!-- PWA & SEO Meta Tags -->
+  <meta name="description" content="SereneReader - Leitor de e-books ergonômico, PWA offline, com suporte a EPUB, PDF, TXT, sintetizador de voz (TTS) e filtros circadianos.">
+  <meta name="theme-color" content="#F7F4EB">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- External CDNs: Tailwind CSS, JSZip (EPUB) e PDF.js (PDF) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  
+  <!-- CDNs - Novos Parsers -->
+  <script src="https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+
+  <!-- Estilos Personalizados & Design System -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body id="reader-root" class="h-full w-full relative flex flex-col transition-colors duration-200" style="background-color: #F7F4EB; color: #242424;">
+
+  <!-- Camada 1: Filtro Circadiano Âmbar (Anti-luz azul) -->
+  <div id="amber-overlay" 
+       class="pointer-events-none fixed inset-0 z-40 transition-opacity duration-150" 
+       style="background-color: #ff8800; opacity: 0;"></div>
+
+  <!-- Camada 2: Sub-brilho Noturno via Software -->
+  <div id="dimmer-overlay" 
+       class="pointer-events-none fixed inset-0 transition-opacity duration-150" 
+       style="background-color: #000000; opacity: 0; z-index: 45;"></div>
+
+  <!-- Topo Bar -->
+  <header id="top-bar" class="z-20 flex items-center justify-between px-4 py-2.5 shrink-0 border-b border-black/5 dark:border-white/5 opacity-90 transition-opacity">
+    <div class="flex items-center space-x-2">
+      <!-- Botão Abrir Biblioteca -->
+      <button id="open-library-btn" title="Minha Biblioteca" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition">
+        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <span class="truncate max-w-[140px] sm:max-w-xs" id="header-book-name">Os Lusíadas</span>
+      </button>
+    </div>
+
+    <div class="flex items-center space-x-1 sm:space-x-2">
+      <!-- Busca -->
+      <div id="search-container" class="hidden sm:flex items-center bg-black/5 dark:bg-white/5 rounded-full px-2 py-1 mr-1 transition-all">
+        <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="search-input" placeholder="Buscar..." class="bg-transparent border-none outline-none text-[10px] w-20 px-1 py-0.5 text-current placeholder-current/50">
+      </div>
+
+      <!-- Botão Capítulo / TOC -->
+      <button id="open-toc-btn" title="Índice de Capítulos" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition">
+        <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+        </svg>
+      </button>
+
+      <!-- Botão Adicionar Marcador -->
+      <button id="add-bookmark-btn" title="Guardar Marcador" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition">
+        <svg class="w-4 h-4 opacity-80 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+        </svg>
+      </button>
+
+      <!-- Botão Ecrã Inteiro -->
+      <button id="fullscreen-btn" title="Ecrã Inteiro" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition hidden sm:block">
+        <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+        </svg>
+      </button>
+
+      <!-- Botão Ajustes (Abre a gaveta lateral) -->
+      <button id="open-settings-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-current opacity-90 hover:opacity-100 active:scale-95 transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+        </svg>
+        <span>Ajustes</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Container Principal de Leitura -->
+  <main class="relative flex-1 w-full flex flex-col justify-center items-center overflow-hidden">
+    <div id="tap-prev-zone" class="absolute left-0 top-0 bottom-0 w-1/4 z-10 cursor-w-resize" title="Página Anterior"></div>
+    <div id="tap-next-zone" class="absolute right-0 top-0 bottom-0 w-1/4 z-10 cursor-e-resize" title="Página Seguinte"></div>
+
+    <div id="touch-hint" class="pointer-events-none absolute bottom-4 text-[11px] opacity-40 uppercase tracking-widest transition-opacity duration-300">
+      Toque nas margens laterais ou deslize para paginar
+    </div>
+
+    <article id="reading-container" class="w-full h-full flex flex-col justify-between px-6 sm:px-12 py-4 max-w-xl mx-auto overflow-hidden">
+      <div id="page-content" class="page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto">
+        <!-- Conteúdo do livro injetado dinamicamente -->
+      </div>
+    </article>
+  </main>
+
+  <!-- Rodapé com Progresso e Botões -->
+  <footer id="footer-bar" class="z-20 px-6 py-2.5 shrink-0 flex items-center justify-between text-xs opacity-80 select-none border-t border-black/5 dark:border-white/5">
+    <button id="prev-btn" class="p-1 px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      <span>Anterior</span>
+    </button>
+
+    <div class="flex flex-col items-center gap-0.5">
+      <span id="page-counter-text" class="font-medium tracking-tight">Página 1 de 1</span>
+      <div class="w-24 sm:w-36 h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+        <div id="progress-bar-fill" class="h-full bg-current transition-all duration-150" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <button id="next-btn" class="p-1 px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium">
+      <span>Seguinte</span>
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </footer>
+
+  <!-- Backdrops e Gavetas Modal com Cores Dinâmicas por Tema -->
+  <div id="settings-backdrop" class="fixed inset-0 bg-black/30 z-50 hidden transition-opacity duration-200 opacity-0"></div>
+
+  <!-- Gaveta 1: Ajustes Ergonómicos e TTS -->
+  <aside id="settings-drawer" class="fixed right-0 top-0 bottom-0 w-full sm:w-96 shadow-2xl transform translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-l border-current/10" style="z-index: 60;">
+    <div class="p-4 px-5 border-b border-current/10 flex items-center justify-between drawer-header">
+      <h2 class="text-sm font-semibold tracking-tight flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        Ajustes Ergonómicos
+      </h2>
+      <button id="close-settings-btn" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
+
+      <!-- Player Sintetizador de Voz (TTS) -->
+      <section class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+          Sintetizador de Voz (TTS)
+        </label>
+        <button id="tts-play-btn" class="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span>Ouvir Página (TTS)</span>
+        </button>
+        <select id="tts-voice-select" class="w-full px-2 py-1.5 text-xs rounded border border-current/20 bg-transparent text-current outline-none">
+          <option value="">Carregando vozes...</option>
+        </select>
+        <div class="flex items-center justify-between text-xs">
+          <span>Velocidade:</span>
+          <span id="tts-rate-val" class="font-mono font-bold text-amber-600">1.0x</span>
+        </div>
+        <input id="tts-rate-slider" type="range" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer accent-amber-600">
+        <div class="flex items-center justify-between text-xs mt-1">
+          <span>Tom (Pitch):</span>
+          <span id="tts-pitch-val" class="font-mono font-bold text-amber-600">1.0x</span>
+        </div>
+        <input id="tts-pitch-slider" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer accent-amber-600">
+        <div class="pt-2 flex items-center justify-between text-xs border-t border-amber-500/20">
+          <span title="Desligar voz automaticamente">Sleep Timer:</span>
+          <div class="flex gap-1">
+            <button class="tts-timer-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-minutes="0">Off</button>
+            <button class="tts-timer-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-minutes="15">15m</button>
+            <button class="tts-timer-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-minutes="30">30m</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. Paletas de Cor -->
+      <section>
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70 mb-2.5">
+          1. Paleta de Cor Ocular
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button data-theme="paper" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #F7F4EB; color: #242424; border-color: #dfdaca;">
+            <span class="text-xs font-bold">Papel Natural</span>
+            <span class="text-[10px] opacity-75">Marfim diurno suave</span>
+          </button>
+
+          <button data-theme="sepia" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #EFE6D5; color: #2D2B28; border-color: #dacdb5;">
+            <span class="text-xs font-bold">Papiro / Sépia</span>
+            <span class="text-[10px] opacity-75">Tons quentes de repouso</span>
+          </button>
+
+          <button data-theme="night" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #161618; color: #C2C0B8; border-color: #2b2b2e;">
+            <span class="text-xs font-bold">Noite Conforto</span>
+            <span class="text-[10px] opacity-75">Carvão sem halo puro</span>
+          </button>
+
+          <button data-theme="red" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #110505; color: #B86B6B; border-color: #311313;">
+            <span class="text-xs font-bold">Luz Vermelha</span>
+            <span class="text-[10px] opacity-75">Anti-luz azul (sono)</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 2. Filtros de Iluminação -->
+      <section class="space-y-4 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          2. Iluminação Circadiana
+        </label>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+              Sub-Brilho Noturno
+            </span>
+            <span id="sub-dimmer-val" class="font-mono opacity-80">0%</span>
+          </div>
+          <input id="sub-dimmer-slider" type="range" min="0" max="85" value="0" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+          <p class="text-[10px] opacity-60">Escurece o ecrã no escuro absoluto.</p>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium text-amber-600 dark:text-amber-400">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Filtro Âmbar (Calor)
+            </span>
+            <span id="amber-val" class="font-mono opacity-80">0%</span>
+          </div>
+          <input id="amber-slider" type="range" min="0" max="45" value="0" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer accent-amber-500">
+          <p class="text-[10px] opacity-60">Elimina luz azul estimulante.</p>
+        </div>
+      </section>
+
+      <!-- 3. Tipografia -->
+      <section class="space-y-4 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          3. Tipografia & Layout
+        </label>
+
+        <div>
+          <span class="block text-xs font-medium mb-1.5">Família de Fonte</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button data-font="Literata" class="font-family-btn py-1.5 px-2 text-xs border border-current/20 rounded-lg transition font-['Literata']">Literata</button>
+            <button data-font="Lora" class="font-family-btn py-1.5 px-2 text-xs border border-current/20 rounded-lg transition font-['Lora']">Lora</button>
+            <button data-font="Merriweather" class="font-family-btn py-1.5 px-2 text-xs border border-current/20 rounded-lg transition font-['Merriweather']">Merriweather</button>
+            <button data-font="OpenDyslexic" class="font-family-btn py-1.5 px-2 text-xs border border-current/20 rounded-lg transition font-opendyslexic">OpenDyslexic</button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium">
+            <span>Tamanho da Fonte</span>
+            <span id="font-size-val" class="font-mono opacity-80">18px</span>
+          </div>
+          <input id="font-size-slider" type="range" min="14" max="32" value="18" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium">
+            <span>Largura da Margem</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button data-width="max-w-md" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Estreita</button>
+            <button data-width="max-w-xl" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Ideal</button>
+            <button data-width="max-w-3xl" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Larga</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Importar Ficheiro -->
+      <section class="space-y-3 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          4. Importar Livro ou Artigo
+        </label>
+        
+        <label class="w-full py-2.5 px-3 border border-dashed border-current/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition">
+          <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          <span class="text-xs font-medium">Carregar Ficheiro</span>
+          <input type="file" id="file-input" accept=".epub,.pdf,.txt,.md,.docx,.cbz,.fb2" class="hidden">
+        </label>
+
+        <div class="flex gap-2 mt-2">
+          <input id="url-input" type="url" placeholder="Colar link de artigo..." 
+                 class="flex-1 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
+          <button id="url-import-btn" class="px-3 py-2 text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">
+            Ler Web
+          </button>
+        </div>
+      </section>
+
+      <!-- 5. Marcadores do Livro -->
+      <section class="space-y-3 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          5. Marcadores Salvos
+        </label>
+        <div id="bookmarks-list" class="space-y-1.5">
+          <!-- Injetado dinamicamente -->
+        </div>
+      </section>
+
+      <!-- 6. Modos de Leitura Avançados -->
+      <section class="space-y-3 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          6. Modos de Leitura Avançados
+        </label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer text-xs">
+            <input type="checkbox" id="bionic-toggle" class="accent-amber-600 w-3.5 h-3.5">
+            <span class="font-medium">Bionic Reading</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-xs">
+            <input type="checkbox" id="linefocus-toggle" class="accent-amber-600 w-3.5 h-3.5">
+            <span class="font-medium">Foco de Linha</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-xs">
+            <input type="checkbox" id="ruler-toggle" class="accent-amber-600 w-3.5 h-3.5">
+            <span class="font-medium">Régua de Leitura</span>
+          </label>
+          <button id="open-rsvp-btn" class="mt-2 w-full py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Modo Leitura Rápida (RSVP)
+          </button>
+        </div>
+      </section>
+
+      <!-- 7. Notas do Livro -->
+      <section class="space-y-3 pt-2 border-t border-current/10">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          7. Notas do Livro
+        </label>
+        <textarea id="book-notes-input" rows="4" placeholder="Escreva suas reflexões aqui... Elas são salvas automaticamente neste livro." class="w-full px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500 resize-y"></textarea>
+      </section>
+
+      <!-- 8. Sincronização & Backup -->
+      <section class="space-y-3 pt-2 border-t border-current/10 pb-6">
+        <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
+          8. Sincronização & Backup
+        </label>
+        <div class="flex gap-2">
+          <button id="export-backup-btn" class="flex-1 py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Exportar
+          </button>
+          <label class="flex-1 py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition active:scale-98">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            <span>Importar</span>
+            <input type="file" id="import-backup-input" accept=".json" class="hidden">
+          </label>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Gaveta 2: Biblioteca de Livros (IndexedDB Bookshelf) -->
+  <div id="library-backdrop" class="fixed inset-0 bg-black/40 z-50 hidden transition-opacity duration-200 opacity-0"></div>
+  <aside id="library-drawer" class="fixed left-0 top-0 bottom-0 w-full sm:w-96 shadow-2xl transform -translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-r border-current/10" style="z-index: 60;">
+    <div class="p-4 px-5 border-b border-current/10 flex items-center justify-between drawer-header">
+      <h2 class="text-sm font-semibold tracking-tight flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        Biblioteca Local
+      </h2>
+      <button id="close-library-btn" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar" id="library-books-grid">
+      <!-- Livros salvos no IndexedDB renderizados aqui -->
+    </div>
+  </aside>
+
+  <!-- Gaveta 3: Índice de Capítulos (TOC) -->
+  <div id="toc-backdrop" class="fixed inset-0 bg-black/40 z-50 hidden transition-opacity duration-200 opacity-0"></div>
+  <aside id="toc-drawer" class="fixed left-0 top-0 bottom-0 w-full sm:w-80 shadow-2xl transform -translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-r border-current/10" style="z-index: 60;">
+    <div class="p-4 px-5 border-b border-current/10 flex items-center justify-between drawer-header">
+      <h2 class="text-sm font-semibold tracking-tight">Capítulos & Índice</h2>
+      <button id="close-toc-btn" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar" id="toc-list">
+      <!-- Lista de Capítulos -->
+    </div>
+  </aside>
+
+  <!-- RSVP Modal -->
+  <div id="rsvp-modal" class="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-200">
+    <button id="rsvp-close-btn" class="absolute top-6 right-6 text-white p-2 rounded-full hover:bg-white/10 transition">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <div id="rsvp-word-display" class="text-white text-5xl sm:text-7xl font-mono tracking-widest text-center h-24 flex items-center justify-center mb-12 select-none">
+      Preparando...
+    </div>
+    <div class="flex items-center gap-4 text-white w-64">
+      <button id="rsvp-play-btn" class="p-3 bg-white/20 rounded-full hover:bg-white/30 transition">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="flex-1">
+        <div class="flex justify-between text-xs font-mono mb-1">
+          <span>WPM:</span><span id="rsvp-wpm-val">300</span>
+        </div>
+        <input id="rsvp-wpm-slider" type="range" min="150" max="800" step="25" value="300" class="w-full h-1.5 bg-white/30 rounded-lg cursor-pointer accent-white">
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts do SereneReader -->
+  <script src="js/storage.js"></script>
+  <script src="js/pagination.js"></script>
+  <script src="js/epub_parser.js"></script>
+  <script src="js/pdf_reader.js"></script>
+  <script src="js/format_parsers.js"></script>
+  <script src="js/url_reader.js"></script>
+  <script src="js/reading_modes.js"></script>
+  <script src="js/annotations.js"></script>
+  <script src="js/sync_engine.js"></script>
+  <script src="js/tts_engine.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Registro do Service Worker PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.log('ServiceWorker não registrado:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

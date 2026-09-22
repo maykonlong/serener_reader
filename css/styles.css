@@ -1,0 +1,116 @@
+/* ==========================================================================
+   SereneReader - Design System & Estilos Ergonómicos
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Open+Dyslexic&display=swap');
+
+/* Reset e Trava de Rolagem Padrão */
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  margin: 0;
+  padding: 0;
+  font-family: 'Literata', Georgia, serif;
+}
+
+/* O texto do livro permanece selecionável sem filtros que causam fadiga */
+#page-content {
+  -webkit-user-select: text;
+  user-select: text;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  hyphens: auto;
+  word-break: break-word;
+}
+
+/* Hierarquia Estrita de Z-Index para evitar que o Backdrop intercepte cliques nas Gavetas */
+#amber-overlay {
+  z-index: 40 !important;
+}
+
+#dimmer-overlay {
+  z-index: 45 !important;
+}
+
+#settings-backdrop,
+#library-backdrop,
+#toc-backdrop {
+  z-index: 50 !important;
+}
+
+#settings-drawer,
+#library-drawer,
+#toc-drawer {
+  z-index: 60 !important;
+}
+
+/* Animação ultra-suave de virada de página */
+.page-fade {
+  transition: opacity 100ms ease-out, transform 100ms ease-out;
+}
+
+/* Sliders ergonómicos ajustados */
+input[type=range] {
+  accent-color: currentColor;
+}
+
+/* Ocultar barras de scroll feias preservando rolagem em menus */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Foco visível de Acessibilidade */
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Fonte Dyslexic para leiturabilidade aumentada */
+.font-opendyslexic {
+  font-family: 'Open Dyslexic', 'Comic Sans MS', sans-serif !important;
+}
+
+/* Destaque Ativo de Leitura TTS */
+.tts-speaking-paragraph {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-left: 3px solid #f59e0b;
+  padding-left: 0.5rem;
+  transition: background-color 200ms ease;
+}
+
+/* Sombra e Efeitos da Biblioteca de Livros */
+.book-card {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.book-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Bionic Reading */
+.bionic-bold { font-weight: 800; opacity: 0.95; }
+
+/* Modo Foco de Linha */
+.line-focus-dim { opacity: 0.25; filter: blur(0.3px); transition: opacity 150ms ease, filter 150ms ease; }
+.line-focus-active { opacity: 1; filter: none; transition: opacity 150ms ease, filter 150ms ease; }
+
+/* Régua de Leitura */
+#reading-ruler {
+  position: fixed; left: 0; right: 0;
+  pointer-events: none; z-index: 55;
+  height: 30px;
+  background: rgba(245, 158, 11, 0.10);
+  border-top: 1px solid rgba(245, 158, 11, 0.3);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  display: none;
+}
