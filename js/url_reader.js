@@ -5,10 +5,10 @@
 
 class SereneURLReader {
   constructor() {
-    // Array de proxies CORS gratuitos para tolerância a falhas
     this.proxies = [
-      'https://corsproxy.io/?',
-      'https://api.allorigins.win/raw?url='
+      { url: 'https://api.allorigins.win/get?url=', type: 'json' },
+      { url: 'https://corsproxy.io/?', type: 'raw' },
+      { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'raw' }
     ];
   }
 
@@ -18,29 +18,51 @@ class SereneURLReader {
     }
 
     try {
-      // 1. Tentar fazer fetch usando proxies CORS com fallback
       let response = null;
       let htmlText = '';
       let fetchError = null;
 
-      for (const proxy of this.proxies) {
+      // 1. Interceptor Nativo para Wikipédia/Wikisource (Bypass de Proxy)
+      if (url.includes('wikipedia.org/wiki/') || url.includes('wikisource.org/wiki/')) {
+        const urlObj = new URL(url);
+        const pageName = urlObj.pathname.split('/wiki/')[1];
+        const apiUrl = `${urlObj.origin}/w/api.php?action=parse&page=${pageName}&format=json&origin=*`;
+        
         try {
-          const fetchUrl = proxy.includes('allorigins') 
-            ? proxy + encodeURIComponent(url) 
-            : proxy + encodeURIComponent(url);
-            
-          response = await fetch(fetchUrl);
-          if (response.ok) {
-            htmlText = await response.text();
-            break; // Sucesso, sai do loop
+          const res = await fetch(apiUrl);
+          const data = await res.json();
+          if (data && data.parse && data.parse.text) {
+            htmlText = `<html><head><title>${data.parse.title}</title></head><body>${data.parse.text['*']}</body></html>`;
           }
         } catch (e) {
-          fetchError = e; // Guarda o erro para tentar o próximo proxy
+          fetchError = e;
+        }
+      }
+
+      // 2. Tentar proxies CORS com fallback (se não for Wiki ou se falhou)
+      if (!htmlText) {
+        for (const proxy of this.proxies) {
+          try {
+            const fetchUrl = proxy.url + encodeURIComponent(url);
+            response = await fetch(fetchUrl);
+            
+            if (response.ok) {
+              if (proxy.type === 'json') {
+                const data = await response.json();
+                htmlText = data.contents;
+              } else {
+                htmlText = await response.text();
+              }
+              if (htmlText) break; // Sucesso
+            }
+          } catch (e) {
+            fetchError = e; // Guarda o erro para tentar o próximo proxy
+          }
         }
       }
 
       if (!htmlText) {
-        throw new Error(`Nenhum proxy conseguiu acessar a página. Verifique sua conexão ou se a página bloqueia bots. (Erro original: ${fetchError ? fetchError.message : 'Desconhecido'})`);
+        throw new Error(`Nenhum proxy conseguiu acessar a página. Verifique sua conexão ou se a página bloqueia bots. (Erro: ${fetchError ? fetchError.message : 'Desconhecido'})`);
       }
       
       // 2. Parse HTML text into a DOM Document
