@@ -110,13 +110,14 @@ class SereneStorage {
     });
   }
 
-  async updateProgress(bookId, currentPage, currentChapter = 0) {
+  async updateProgress(bookId, currentPage, currentChapter = 0, scrollPosition = 0) {
     await this.ready();
     const book = await this.getBook(bookId);
     if (!book) return;
 
     book.currentPage = currentPage;
     book.currentChapter = currentChapter;
+    book.scrollPosition = scrollPosition;
     book.lastReadAt = Date.now();
 
     return new Promise((resolve, reject) => {

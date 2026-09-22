@@ -73,7 +73,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     amberOpacity: 0,
     ttsRate: 1.0,
     isPdfMode: false,
-    pdfText: ''
+    pdfText: '',
+    readingMode: 'paged' // 'paged' | 'scroll'
   };
 
   // --- Elementos da DOM ---
@@ -183,6 +184,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (rulerToggle) rulerToggle.checked = saved.rulerEnabled;
         if (window.sereneReadingModes) window.sereneReadingModes.toggleRuler(saved.rulerEnabled);
       }
+      if (saved.readingMode) {
+        state.readingMode = saved.readingMode;
+      }
     } else {
       applyTheme('paper');
     }
@@ -199,7 +203,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       amberOpacity: state.amberOpacity,
       bionicEnabled: window.sereneReadingModes ? window.sereneReadingModes.bionicEnabled : false,
       lineFocusEnabled: window.sereneReadingModes ? window.sereneReadingModes.lineFocusEnabled : false,
-      rulerEnabled: window.sereneReadingModes ? window.sereneReadingModes.rulerEnabled : false
+      rulerEnabled: window.sereneReadingModes ? window.sereneReadingModes.rulerEnabled : false,
+      readingMode: state.readingMode
     });
   }
 
@@ -269,13 +274,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       textToPaginate = state.currentBook.content || '';
     }
 
-    state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
-      fontFamily: state.fontFamily,
-      fontSize: state.fontSize,
-      maxWidthClass: state.maxWidthClass
-    });
+    state.pages = [];
+    if (state.readingMode === 'scroll' && !state.isPdfMode) {
+      // No modo scroll contínuo, a "página" é o texto/capítulo inteiro
+      state.pages = [textToPaginate];
+    } else {
+      state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
+        fontFamily: state.fontFamily,
+        fontSize: state.fontSize,
+        maxWidthClass: state.maxWidthClass
+      });
+    }
 
-    if (!isInitialLoad && state.pages.length > 0 && percentage > 0) {
+    if (!isInitialLoad && state.pages.length > 0 && percentage > 0 && state.readingMode !== 'scroll') {
        state.currentPage = Math.floor(percentage * state.pages.length);
     }
 
@@ -299,9 +310,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (window.sereneReadingModes && window.sereneReadingModes.bionicEnabled) {
           content = window.sereneReadingModes.applyBionicReading(content);
         }
+        
+        if (state.readingMode === 'scroll' && state.currentBook && state.currentBook.chapters && state.currentChapter < state.currentBook.chapters.length - 1) {
+          content += `<div class="mt-12 mb-8 text-center"><button onclick="window.nextPage()" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-sm font-semibold shadow-md transition active:scale-95">Próximo Capítulo ↓</button></div>`;
+        }
+
         pageContentEl.innerHTML = content;
         
-        // Re-apply line focus to new paragraphs if enabled
         if (window.sereneReadingModes && window.sereneReadingModes.lineFocusEnabled) {
           window.sereneReadingModes.toggleLineFocus(false); // reset
           window.sereneReadingModes.toggleLineFocus(true);
@@ -310,19 +325,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const total = state.pages.length;
       const currentNum = state.currentPage + 1;
+      
+      // Ajustes visuais para Modo Scroll
+      const footerBar = document.querySelector('.bottom-bar');
+      if (state.readingMode === 'scroll' && !state.isPdfMode) {
+        pageContentEl.classList.remove('overflow-hidden', 'my-auto');
+        pageContentEl.classList.add('overflow-y-auto', 'scroll-mode-active');
+        if (footerBar) footerBar.classList.add('hidden');
+        
+        // Esconder setas laterais
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+
+        // Restaurar Scroll Salvo (se houver)
+        setTimeout(() => {
+          if (state.currentBook && state.currentBook.scrollPosition !== undefined) {
+             pageContentEl.scrollTop = state.currentBook.scrollPosition;
+          } else {
+             pageContentEl.scrollTop = 0;
+          }
+        }, 10);
+      } else {
+        pageContentEl.classList.add('overflow-hidden', 'my-auto');
+        pageContentEl.classList.remove('overflow-y-auto', 'scroll-mode-active');
+        if (footerBar) footerBar.classList.remove('hidden');
+        prevBtn.style.display = 'flex';
+        nextBtn.style.display = 'flex';
+      }
       pageCounterTextEl.textContent = `Página ${currentNum} de ${total}`;
       
       const progressPercent = total > 1 ? ((currentNum - 1) / (total - 1)) * 100 : 100;
       progressBarFillEl.style.width = `${progressPercent}%`;
 
-      prevBtn.style.opacity = state.currentPage === 0 ? "0.3" : "1";
-      nextBtn.style.opacity = state.currentPage === total - 1 ? "0.3" : "1";
+      if (state.readingMode !== 'scroll' || state.isPdfMode) {
+        prevBtn.style.opacity = state.currentPage === 0 ? "0.3" : "1";
+        nextBtn.style.opacity = state.currentPage === total - 1 ? "0.3" : "1";
+      }
 
       pageContentEl.classList.remove('opacity-0');
       pageContentEl.classList.add('opacity-100');
 
       if (state.currentBook && state.currentBook.id) {
-        window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter);
+        if (state.readingMode === 'scroll' && !state.isPdfMode) {
+           // Scroll mode: não salva a página, será atualizado pelo evento onscroll
+        } else {
+           window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter);
+        }
       }
     }, 50);
   }
@@ -501,6 +549,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.style.backgroundColor = 'transparent';
       }
     });
+
+    // Destacar botão de modo de leitura
+    document.querySelectorAll('.reading-mode-btn').forEach(btn => {
+      if (btn.dataset.mode === state.readingMode) {
+        btn.classList.add('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
+        btn.classList.remove('opacity-70', 'border-current/20');
+      } else {
+        btn.classList.remove('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
+        btn.classList.add('opacity-70', 'border-current/20');
+      }
+    });
   }
 
   // --- Gavetas (Drawer) UI ---
@@ -602,6 +661,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.stopPropagation();
       state.maxWidthClass = btn.dataset.width;
       await applyTypography();
+      if (!state.isPdfMode) paginateAndRender();
+    });
+  });
+
+  document.querySelectorAll('.reading-mode-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      state.readingMode = btn.dataset.mode;
+      updateActiveButtonStates();
+      savePreferences();
       if (!state.isPdfMode) paginateAndRender();
     });
   });
@@ -1085,6 +1154,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  // --- Listener de Rolagem (Scroll Mode) ---
+  let scrollTimeout;
+  pageContentEl.addEventListener('scroll', () => {
+    if (state.readingMode === 'scroll' && !state.isPdfMode && state.currentBook) {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter, pageContentEl.scrollTop);
+      }, 500); // Debounce de 500ms
+    }
+  });
 
   // --- Inicialização ---
   await loadPreferences();

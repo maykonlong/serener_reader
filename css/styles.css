@@ -99,6 +99,26 @@ input[type=range] {
 
 /* Bionic Reading */
 .bionic-bold { font-weight: 800; opacity: 0.95; }
+b, strong { font-weight: 700; }
+
+/* Modo de Rolagem Contínua (Scroll Mode) */
+.scroll-mode-active {
+  padding-bottom: 50vh !important; /* Espaço extra no final para rolar confortavelmente */
+  scrollbar-width: thin;
+  scrollbar-color: currentColor transparent;
+}
+
+.scroll-mode-active::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-mode-active::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-mode-active::-webkit-scrollbar-thumb {
+  background-color: currentColor;
+  opacity: 0.2;
+  border-radius: 10px;
+}
 
 /* Modo Foco de Linha */
 .line-focus-dim { opacity: 0.25; filter: blur(0.3px); transition: opacity 150ms ease, filter 150ms ease; }
