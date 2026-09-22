@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ttsRate: 1.0,
     isPdfMode: false,
     pdfText: '',
+    pdfZoom: 1.0,
     readingMode: 'paged' // 'paged' | 'scroll'
   };
 
@@ -187,10 +188,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (saved.readingMode) {
         state.readingMode = saved.readingMode;
       }
+      if (saved.pdfZoom !== undefined) {
+        state.pdfZoom = saved.pdfZoom;
+      }
     } else {
       applyTheme('paper');
     }
     updateActiveButtonStates();
+    updateZoomLabel();
   }
 
   async function savePreferences() {
@@ -204,7 +209,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       bionicEnabled: window.sereneReadingModes ? window.sereneReadingModes.bionicEnabled : false,
       lineFocusEnabled: window.sereneReadingModes ? window.sereneReadingModes.lineFocusEnabled : false,
       rulerEnabled: window.sereneReadingModes ? window.sereneReadingModes.rulerEnabled : false,
-      readingMode: state.readingMode
+      readingMode: state.readingMode,
+      pdfZoom: state.pdfZoom
     });
   }
 
@@ -275,15 +281,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     state.pages = [];
-    if (state.readingMode === 'scroll' && !state.isPdfMode) {
-      // No modo scroll contínuo, a "página" é o texto/capítulo inteiro
-      state.pages = [textToPaginate];
+    if (state.readingMode === 'scroll') {
+      if (state.isPdfMode) {
+        state.pages = new Array(window.serenePDFReader.numPages).fill('');
+      } else {
+        // No modo scroll contínuo, a "página" é o texto/capítulo inteiro
+        state.pages = [textToPaginate];
+      }
     } else {
-      state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
-        fontFamily: state.fontFamily,
-        fontSize: state.fontSize,
-        maxWidthClass: state.maxWidthClass
-      });
+      if (state.isPdfMode) {
+        state.pages = new Array(window.serenePDFReader.numPages).fill('');
+      } else {
+        state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
+          fontFamily: state.fontFamily,
+          fontSize: state.fontSize,
+          maxWidthClass: state.maxWidthClass
+        });
+      }
     }
 
     if (state.pages.length > 0 && state.readingMode !== 'scroll') {
@@ -309,7 +323,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(async () => {
       if (state.isPdfMode) {
         const pageNum = state.currentPage + 1;
-        state.pdfText = await window.serenePDFReader.renderPage(pageNum, pageContentEl);
+        if (state.readingMode === 'scroll') {
+          // Renderiza PDF no modo Scroll
+          await window.serenePDFReader.renderScrollMode(pageContentEl, state.pdfZoom);
+          
+          // No modo scroll de PDF, o texto para TTS pegamos apenas da página atual (1) temporariamente,
+          // ou podemos pegar conforme rola (fica para melhoria futura).
+          state.pdfText = await window.serenePDFReader.getPageText(1);
+          
+          // Restaurar scroll salvo
+          setTimeout(() => {
+            if (state.currentBook && state.currentBook.scrollPosition !== undefined) {
+               pageContentEl.scrollTop = state.currentBook.scrollPosition;
+            }
+          }, 100);
+        } else {
+          // Limpar qualquer observer anterior do modo scroll
+          if (window.serenePDFReader.cleanup) window.serenePDFReader.cleanup();
+          // Renderiza PDF no modo Paginado normal
+          state.pdfText = await window.serenePDFReader.renderPage(pageNum, pageContentEl, state.pdfZoom);
+        }
       } else {
         let content = state.pages[state.currentPage] || '<p class="opacity-60 text-center">Fim do conteúdo.</p>';
         if (window.sereneReadingModes && window.sereneReadingModes.bionicEnabled) {
@@ -333,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       // Ajustes visuais para Modo Scroll
       const footerBar = document.querySelector('.bottom-bar');
-      if (state.readingMode === 'scroll' && !state.isPdfMode) {
+      if (state.readingMode === 'scroll') {
         pageContentEl.classList.remove('overflow-hidden', 'my-auto');
         pageContentEl.classList.add('overflow-y-auto', 'scroll-mode-active');
         if (footerBar) footerBar.classList.add('hidden');
@@ -342,21 +375,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         prevBtn.style.display = 'none';
         nextBtn.style.display = 'none';
 
-        // Restaurar Scroll Salvo (se houver)
-        setTimeout(() => {
-          if (state.currentBook && state.currentBook.scrollPosition !== undefined) {
-             pageContentEl.scrollTop = state.currentBook.scrollPosition;
-          } else {
-             pageContentEl.scrollTop = 0;
-          }
-        }, 10);
+        // Restaurar Scroll Salvo (se houver e não for PDF, pois PDF restaura acima de forma customizada)
+        if (!state.isPdfMode) {
+          setTimeout(() => {
+            if (state.currentBook && state.currentBook.scrollPosition !== undefined) {
+               pageContentEl.scrollTop = state.currentBook.scrollPosition;
+            } else {
+               pageContentEl.scrollTop = 0;
+            }
+          }, 10);
+        }
       } else {
-        pageContentEl.classList.add('overflow-hidden', 'my-auto');
+        pageContentEl.classList.add('overflow-hidden');
+        if (!state.isPdfMode) pageContentEl.classList.add('my-auto');
         pageContentEl.classList.remove('overflow-y-auto', 'scroll-mode-active');
         if (footerBar) footerBar.classList.remove('hidden');
         prevBtn.style.display = 'flex';
         nextBtn.style.display = 'flex';
       }
+      
       pageCounterTextEl.textContent = `Página ${currentNum} de ${total}`;
       
       const progressPercent = total > 1 ? ((currentNum - 1) / (total - 1)) * 100 : 100;
@@ -371,7 +408,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       pageContentEl.classList.add('opacity-100');
 
       if (state.currentBook && state.currentBook.id) {
-        if (state.readingMode === 'scroll' && !state.isPdfMode) {
+        if (state.readingMode === 'scroll') {
            // Scroll mode: salvamos apenas a posição absoluta, que é disparada pelo evento de scroll
         } else {
            const percent = total > 0 ? state.currentPage / total : 0;
@@ -645,12 +682,133 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // --- Zoom Dinâmico e Barra Flutuante ---
+  function setFontSize(newSize) {
+    state.fontSize = newSize;
+    if (fontSizeSlider) fontSizeSlider.value = state.fontSize;
+    if (fontSizeVal) fontSizeVal.textContent = `${state.fontSize}px`;
+    updateZoomLabel();
+    applyTypography();
+    if (!state.isPdfMode) paginateAndRender();
+  }
+
+  function updateZoomLabel() {
+    const label = document.getElementById('zoom-level-label');
+    if (!label) return;
+    if (state.isPdfMode) {
+      label.textContent = `${Math.round(state.pdfZoom * 100)}%`;
+    } else {
+      label.textContent = `${state.fontSize}px`;
+    }
+  }
+
+  const zoomInBtn = document.getElementById('zoom-in-btn');
+  const zoomOutBtn = document.getElementById('zoom-out-btn');
+  const quickZoomBar = document.getElementById('quick-zoom-bar');
+
+  if (zoomInBtn && zoomOutBtn) {
+    let hideZoomTimeout;
+    const showZoomBar = () => {
+      if (quickZoomBar) {
+        quickZoomBar.classList.add('zoom-active');
+        clearTimeout(hideZoomTimeout);
+        hideZoomTimeout = setTimeout(() => {
+          quickZoomBar.classList.remove('zoom-active');
+        }, 3000);
+      }
+    };
+
+    // Mostrar ao interagir com a tela
+    document.addEventListener('touchstart', showZoomBar, {passive: true});
+    document.addEventListener('mousemove', showZoomBar, {passive: true});
+
+    zoomInBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showZoomBar();
+      if (state.isPdfMode) {
+        state.pdfZoom = Math.min(state.pdfZoom + 0.1, 3.0);
+        updateZoomLabel();
+        savePreferences();
+        if (state.readingMode === 'scroll') {
+          window.serenePDFReader.reRenderVisiblePages(pageContentEl, state.pdfZoom);
+        } else {
+          renderCurrentPage();
+        }
+      } else {
+        const newSize = Math.min(state.fontSize + 2, 40);
+        setFontSize(newSize);
+        savePreferences();
+      }
+    });
+
+    zoomOutBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showZoomBar();
+      if (state.isPdfMode) {
+        state.pdfZoom = Math.max(state.pdfZoom - 0.1, 0.5);
+        updateZoomLabel();
+        savePreferences();
+        if (state.readingMode === 'scroll') {
+          window.serenePDFReader.reRenderVisiblePages(pageContentEl, state.pdfZoom);
+        } else {
+          renderCurrentPage();
+        }
+      } else {
+        const newSize = Math.max(state.fontSize - 2, 12);
+        setFontSize(newSize);
+        savePreferences();
+      }
+    });
+
+    // Pinch-to-zoom support for mobile
+    let initialPinchDistance = null;
+    const readingContainer = document.getElementById('reading-container');
+    
+    if (readingContainer) {
+      readingContainer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          initialPinchDistance = Math.hypot(
+            e.touches[0].pageX - e.touches[1].pageX,
+            e.touches[0].pageY - e.touches[1].pageY
+          );
+        }
+      }, { passive: true });
+
+      readingContainer.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialPinchDistance !== null) {
+          const currentDistance = Math.hypot(
+            e.touches[0].pageX - e.touches[1].pageX,
+            e.touches[0].pageY - e.touches[1].pageY
+          );
+          
+          const diff = currentDistance - initialPinchDistance;
+          if (Math.abs(diff) > 40) { // Limiar de sensibilidade
+            if (diff > 0) {
+               zoomInBtn.click();
+            } else {
+               zoomOutBtn.click();
+            }
+            initialPinchDistance = currentDistance; // resetar
+          }
+        }
+      }, { passive: true });
+      
+      readingContainer.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) initialPinchDistance = null;
+      }, { passive: true });
+    }
+  }
+
   if (fontSizeSlider) {
-    fontSizeSlider.addEventListener('input', async (e) => {
+    fontSizeSlider.addEventListener('input', (e) => {
       state.fontSize = parseInt(e.target.value);
       if (fontSizeVal) fontSizeVal.textContent = `${state.fontSize}px`;
-      await applyTypography();
+      updateZoomLabel();
+      applyTypography();
+    });
+    fontSizeSlider.addEventListener('change', () => {
       if (!state.isPdfMode) paginateAndRender();
+      savePreferences();
     });
   }
 
@@ -685,7 +843,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.readingMode = btn.dataset.mode;
       updateActiveButtonStates();
       savePreferences();
-      if (!state.isPdfMode) paginateAndRender();
+      
+      // Se for PDF e mudou de modo, precisamos disparar paginateAndRender
+      // porque o PDF scroll usa paginateAndRender para setar state.pages corretamente
+      paginateAndRender();
     });
   });
 
@@ -1173,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Listener de Rolagem (Scroll Mode) ---
   let scrollTimeout;
   pageContentEl.addEventListener('scroll', () => {
-    if (state.readingMode === 'scroll' && !state.isPdfMode && state.currentBook) {
+    if (state.readingMode === 'scroll' && state.currentBook) {
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter, pageContentEl.scrollTop);

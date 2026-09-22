@@ -2,7 +2,7 @@
 <html lang="pt-PT" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>SereneReader - Leitor Ergonómico Sem Fadiga Visual</title>
 
   <!-- PWA & SEO Meta Tags -->
@@ -44,7 +44,7 @@
         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
-        <span class="truncate max-w-[140px] sm:max-w-xs" id="header-book-name">Os Lusíadas</span>
+        <span class="truncate max-w-[100px] sm:max-w-[140px] md:max-w-xs" id="header-book-name">Os Lusíadas</span>
       </button>
     </div>
 
@@ -77,48 +77,59 @@
       </button>
 
       <!-- Botão Ajustes (Abre a gaveta lateral) -->
-      <button id="open-settings-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-current opacity-90 hover:opacity-100 active:scale-95 transition">
+      <button id="open-settings-btn" class="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium border border-current opacity-90 hover:opacity-100 active:scale-95 transition">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
         </svg>
-        <span>Ajustes</span>
+        <span class="hidden sm:inline">Ajustes</span>
       </button>
     </div>
   </header>
 
   <!-- Container Principal de Leitura -->
   <main class="relative flex-1 w-full flex flex-col justify-center items-center overflow-hidden">
-    <div id="tap-prev-zone" class="absolute left-0 top-0 bottom-0 w-1/4 z-10 cursor-w-resize" title="Página Anterior"></div>
-    <div id="tap-next-zone" class="absolute right-0 top-0 bottom-0 w-1/4 z-10 cursor-e-resize" title="Página Seguinte"></div>
+    <div id="tap-prev-zone" class="absolute left-0 top-0 bottom-0 w-1/3 sm:w-1/4 z-10 cursor-w-resize" title="Página Anterior"></div>
+    <div id="tap-next-zone" class="absolute right-0 top-0 bottom-0 w-1/3 sm:w-1/4 z-10 cursor-e-resize" title="Página Seguinte"></div>
 
     <div id="touch-hint" class="pointer-events-none absolute bottom-4 text-[11px] opacity-40 uppercase tracking-widest transition-opacity duration-300">
       Toque nas margens laterais ou deslize para paginar
     </div>
 
-    <article id="reading-container" class="w-full h-full flex flex-col justify-between px-6 sm:px-12 py-4 max-w-xl mx-auto overflow-hidden">
+    <article id="reading-container" class="w-full h-full flex flex-col justify-between px-4 sm:px-6 md:px-12 py-4 max-w-xl mx-auto overflow-hidden">
       <div id="page-content" class="page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto">
         <!-- Conteúdo do livro injetado dinamicamente -->
       </div>
     </article>
+
+    <!-- Barra de Zoom Rápido (Flutuante) -->
+    <div id="quick-zoom-bar" class="fixed bottom-20 right-3 sm:right-5 z-30 flex items-center gap-0.5 p-1 rounded-full shadow-lg border border-current/15 transition-opacity duration-300 quick-zoom-glass">
+      <button id="zoom-out-btn" title="Diminuir" class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 active:scale-90 transition text-sm font-bold select-none">
+        A−
+      </button>
+      <span id="zoom-level-label" class="text-[10px] font-mono font-semibold opacity-80 min-w-[36px] text-center select-none">18px</span>
+      <button id="zoom-in-btn" title="Aumentar" class="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 active:scale-90 transition text-base font-bold select-none">
+        A+
+      </button>
+    </div>
   </main>
 
   <!-- Rodapé com Progresso e Botões -->
-  <footer id="footer-bar" class="z-20 px-6 py-2.5 shrink-0 flex items-center justify-between text-xs opacity-80 select-none border-t border-black/5 dark:border-white/5">
-    <button id="prev-btn" class="p-1 px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-      <span>Anterior</span>
+  <footer id="footer-bar" class="z-20 px-4 sm:px-6 py-1.5 sm:py-2.5 shrink-0 flex items-center justify-between text-xs opacity-80 select-none border-t border-black/5 dark:border-white/5">
+    <button id="prev-btn" class="p-2 sm:p-1 sm:px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 justify-center">
+      <svg class="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      <span class="hidden sm:inline">Anterior</span>
     </button>
 
     <div class="flex flex-col items-center gap-0.5">
-      <span id="page-counter-text" class="font-medium tracking-tight">Página 1 de 1</span>
-      <div class="w-24 sm:w-36 h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+      <span id="page-counter-text" class="font-medium tracking-tight text-[10px] sm:text-xs">Página 1 de 1</span>
+      <div class="w-20 sm:w-36 h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
         <div id="progress-bar-fill" class="h-full bg-current transition-all duration-150" style="width: 0%;"></div>
       </div>
     </div>
 
-    <button id="next-btn" class="p-1 px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium">
-      <span>Seguinte</span>
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    <button id="next-btn" class="p-2 sm:p-1 sm:px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 justify-center">
+      <span class="hidden sm:inline">Seguinte</span>
+      <svg class="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
     </button>
   </footer>
 
