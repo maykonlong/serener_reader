@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('Erro ao carregar ficheiro PDF: ' + err.message);
       }
     } else {
-      paginateAndRender();
+      paginateAndRender(true);
     }
 
     renderTocDrawer();
@@ -252,8 +252,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Paginação e Renderização ---
-  function paginateAndRender() {
+  function paginateAndRender(isInitialLoad = false) {
     if (!state.currentBook) return;
+
+    let percentage = 0;
+    if (!isInitialLoad && state.pages && state.pages.length > 0) {
+       percentage = state.currentPage / state.pages.length;
+    }
 
     let textToPaginate = '';
     if (state.currentBook.chapters && state.currentBook.chapters.length > 0) {
@@ -268,6 +273,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       fontSize: state.fontSize,
       maxWidthClass: state.maxWidthClass
     });
+
+    if (!isInitialLoad && state.pages.length > 0 && percentage > 0) {
+       state.currentPage = Math.floor(percentage * state.pages.length);
+    }
 
     if (state.currentPage >= state.pages.length) {
       state.currentPage = Math.max(0, state.pages.length - 1);
@@ -966,7 +975,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (foundPage !== -1) {
        state.currentPage = foundPage;
-       saveProgress();
+       window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter);
        renderCurrentPage();
        if (window.innerWidth < 640 && searchContainer) {
          searchContainer.classList.add('hidden');
@@ -1018,6 +1027,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert(err.message);
       }
       e.target.value = ''; // Reset input
+    });
+  }
+
+  // --- Restaurar Padrões ---
+  const resetSettingsBtn = document.getElementById('reset-settings-btn');
+  if (resetSettingsBtn) {
+    resetSettingsBtn.addEventListener('click', async () => {
+      if (confirm('Deseja restaurar todas as configurações visuais para o padrão? (Isto não apagará seus livros ou marcadores)')) {
+        await window.sereneStorage.savePreference('user_settings', {
+          theme: 'paper',
+          fontFamily: 'Literata',
+          fontSize: 18,
+          maxWidthClass: 'max-w-xl',
+          subDimmerOpacity: 0,
+          amberOpacity: 0,
+          bionicEnabled: false,
+          lineFocusEnabled: false,
+          rulerEnabled: false
+        });
+        window.location.reload();
+      }
     });
   }
 

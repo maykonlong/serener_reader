@@ -47,6 +47,12 @@ class SereneTTSEngine {
     const selected = this.voices.find(v => v.name === voiceName);
     if (selected) {
       this.voice = selected;
+      // Reinicia a fala com a nova voz se estiver tocando
+      if (this.isPlaying && !this.isPaused) {
+        const text = this.currentText;
+        this.stop();
+        setTimeout(() => this.speak(text), 100);
+      }
     }
   }
 
