@@ -120,6 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ttsRateSlider = document.getElementById('tts-rate-slider');
   const ttsRateVal = document.getElementById('tts-rate-val');
   const ttsVoiceSelect = document.getElementById('tts-voice-select');
+  const ttsVoiceApplyBtn = document.getElementById('tts-voice-apply-btn');
   const ttsPitchSlider = document.getElementById('tts-pitch-slider');
   const ttsPitchVal = document.getElementById('tts-pitch-val');
   const ttsTimerBtns = document.querySelectorAll('.tts-timer-btn');
@@ -743,9 +744,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(populateVoices, 500); // Aguardar API TTS instanciar as vozes
     if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = populateVoices;
 
-    ttsVoiceSelect.addEventListener('change', (e) => {
-      window.sereneTTS.setVoice(e.target.value);
-    });
+    if (ttsVoiceApplyBtn) {
+      ttsVoiceApplyBtn.addEventListener('click', () => {
+        window.sereneTTS.setVoice(ttsVoiceSelect.value);
+      });
+    }
   }
 
   ttsTimerBtns.forEach(btn => {

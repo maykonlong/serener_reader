@@ -150,9 +150,12 @@
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           <span>Ouvir Página (TTS)</span>
         </button>
-        <select id="tts-voice-select" class="w-full px-2 py-1.5 text-xs rounded border border-current/20 bg-transparent text-current outline-none">
-          <option value="">Carregando vozes...</option>
-        </select>
+        <div class="flex gap-1 w-full">
+          <select id="tts-voice-select" class="flex-1 px-2 py-1.5 text-xs rounded border border-current/20 bg-transparent text-current outline-none">
+            <option value="">Carregando vozes...</option>
+          </select>
+          <button id="tts-voice-apply-btn" class="px-2 py-1.5 text-xs rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold flex-shrink-0 transition active:scale-95">Aplicar</button>
+        </div>
         <div class="flex items-center justify-between text-xs">
           <span>Velocidade:</span>
           <span id="tts-rate-val" class="font-mono font-bold text-amber-600">1.0x</span>
