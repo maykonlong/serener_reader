@@ -39,7 +39,10 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Mais Fontes e Vozes:** Novas tipografias (Atkinson Hyperlegible, Lexend, Vollkorn) e filtro de idioma no sintetizador de voz (TTS).
 - **Atalhos de Teclado:** Painel de ajuda com a tecla `?` para descobrir todos os atalhos.
 - **Leitura Contínua por Voz:** O TTS vira as páginas (e capítulos) automaticamente, com controles na tela de bloqueio via Media Session API.
+- **Destaque palavra-a-palavra:** O TTS marca a palavra que está a ser lida (modo karaokê).
+- **Sons Ambiente:** Ruído de chuva, marrom, rosa e branco gerados em tempo real (Web Audio API) para foco.
 - **Transições de Página:** Escolha entre Nenhuma, Esmaecer ou Deslizar para a virada de página.
+- **Exportação de Notas:** Exporte suas notas e marcadores do livro em Markdown.
 
 ---
 

@@ -291,3 +291,16 @@ mark.search-highlight {
   border-radius: 2px;
   padding: 0 1px;
 }
+
+/* ==========================================================================
+   Destaque palavra-a-palavra (TTS karaokê)
+   ========================================================================== */
+.tts-word {
+  border-radius: 3px;
+  transition: background-color 100ms ease;
+}
+
+.tts-word-active {
+  background: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35);
+}

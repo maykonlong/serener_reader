@@ -1290,7 +1290,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         textToRead = tempDiv.textContent || '';
       }
 
+      const isStarting = !(window.sereneTTS.isPlaying && !window.sereneTTS.isPaused);
       window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
+
+      if (isStarting && !state.isPdfMode) {
+        // Preparar destaque palavra-a-palavra (karaokê)
+        prepareTtsHighlight();
+        ttsWordRanges = buildTtsWordRanges(textToRead);
+      }
+
       window.sereneTTS.toggle(textToRead);
     });
 
@@ -1369,6 +1377,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // --- Sons Ambiente (foco) ---
+  const ambientBtns = document.querySelectorAll('.ambient-btn');
+  ambientBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const type = btn.dataset.type;
+      if (window.sereneAmbient) {
+        window.sereneAmbient.toggle(type);
+      }
+    });
+  });
+  if (window.sereneAmbient) {
+    window.sereneAmbient.onStateChange = ({ playing, type }) => {
+      ambientBtns.forEach(b => {
+        b.classList.remove('bg-amber-600', 'text-white', 'border-amber-600');
+        b.classList.add('hover:bg-black/5');
+        if (playing && b.dataset.type === type) {
+          b.classList.add('bg-amber-600', 'text-white', 'border-amber-600');
+          b.classList.remove('hover:bg-black/5');
+        }
+      });
+    };
+  }
+
   // --- Leitura Contínua (virar página automaticamente ao terminar o TTS) ---
   function getPageTextToRead() {
     if (state.isPdfMode) {
@@ -1387,34 +1419,112 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   window.sereneTTS.onEnd = () => {
-    if (!window.sereneTTS.autoContinue) return;
+    if (!window.sereneTTS.autoContinue) {
+      // Sem leitura contínua: limpar destaque ao terminar
+      pageContentEl.querySelectorAll('.tts-word-active').forEach(el => el.classList.remove('tts-word-active'));
+      return;
+    }
     const total = state.pages.length;
+
+    const speakNext = () => {
+      if (!window.sereneTTS.autoContinue) return;
+      const text = getPageTextToRead();
+      if (!state.isPdfMode) {
+        prepareTtsHighlight();
+        ttsWordRanges = buildTtsWordRanges(text);
+      }
+      window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
+      window.sereneTTS.speak(text);
+    };
+
     if (state.currentPage < total - 1) {
       // Avança para a próxima página
       state.currentPage++;
       renderCurrentPage();
-      setTimeout(() => {
-        if (window.sereneTTS.autoContinue) {
-          window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
-          window.sereneTTS.speak(getPageTextToRead());
-        }
-      }, 400);
+      setTimeout(speakNext, 400);
     } else if (state.currentBook && state.currentBook.chapters && state.currentChapter < state.currentBook.chapters.length - 1) {
       // Avança para o próximo capítulo
       state.currentChapter++;
       state.currentPage = 0;
       paginateAndRender();
-      setTimeout(() => {
-        if (window.sereneTTS.autoContinue) {
-          window.sereneTTS.speak(getPageTextToRead());
-        }
-      }, 600);
+      setTimeout(speakNext, 600);
     } else {
       // Fim do livro
       window.sereneTTS.autoContinue = false;
       if (ttsContinuousToggle) ttsContinuousToggle.checked = false;
+      clearTtsHighlight();
       showToast('Fim do livro alcançado.', 'info');
     }
+  };
+
+  // --- Destaque palavra-a-palavra (TTS karaokê) ---
+  let ttsWordSpans = [];
+  let ttsWordRanges = [];
+
+  function clearTtsHighlight() {
+    ttsWordSpans.forEach(s => {
+      if (s.parentNode) {
+        s.parentNode.replaceChild(document.createTextNode(s.textContent), s);
+      }
+    });
+    ttsWordSpans = [];
+    ttsWordRanges = [];
+  }
+
+  function prepareTtsHighlight() {
+    clearTtsHighlight();
+    if (state.isPdfMode) return;
+
+    const walker = document.createTreeWalker(pageContentEl, NodeFilter.SHOW_TEXT, null);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    let wordIndex = 0;
+    textNodes.forEach(node => {
+      const text = node.nodeValue;
+      if (!text.trim()) return;
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      const re = /[\wÀ-ÿ'-]+/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const span = document.createElement('span');
+        span.className = 'tts-word';
+        span.dataset.idx = wordIndex++;
+        span.textContent = m[0];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+    ttsWordSpans = Array.from(pageContentEl.querySelectorAll('.tts-word'));
+  }
+
+  function buildTtsWordRanges(text) {
+    const ranges = [];
+    const re = /[\wÀ-ÿ'-]+/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      ranges.push({ start: m.index, end: m.index + m[0].length });
+    }
+    return ranges;
+  }
+
+  window.sereneTTS.onBoundary = (charIndex) => {
+    if (ttsWordRanges.length === 0 || ttsWordSpans.length === 0) return;
+    let idx = -1;
+    for (let i = 0; i < ttsWordRanges.length; i++) {
+      if (charIndex >= ttsWordRanges[i].start && charIndex < ttsWordRanges[i].end) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx < 0) return;
+    pageContentEl.querySelectorAll('.tts-word-active').forEach(el => el.classList.remove('tts-word-active'));
+    const span = ttsWordSpans[idx];
+    if (span) span.classList.add('tts-word-active');
   };
 
   // --- Modos de Leitura ---
@@ -1513,6 +1623,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     await window.sereneStorage.removeBookmark(id);
     renderBookmarksList();
   };
+
+  // --- Exportar Notas & Marcadores (Markdown) ---
+  const exportNotesBtn = document.getElementById('export-notes-btn');
+  if (exportNotesBtn) {
+    exportNotesBtn.addEventListener('click', async () => {
+      if (!state.currentBook) return;
+      const bookmarks = await window.sereneStorage.getBookmarks(state.currentBook.id);
+      const notes = state.currentBook.notes || '';
+
+      let md = `# ${state.currentBook.title}\n`;
+      if (state.currentBook.author) md += `*${state.currentBook.author}*\n\n`;
+      md += `> Exportado do Serene Reader em ${new Date().toLocaleString()}\n\n`;
+
+      md += `## Notas\n\n${notes.trim() ? notes.trim() : '*Sem notas.*'}\n\n`;
+
+      md += `## Marcadores\n\n`;
+      if (bookmarks.length === 0) {
+        md += '*Sem marcadores.*\n';
+      } else {
+        bookmarks.forEach(bm => {
+          md += `- **Pág. ${bm.pageIndex + 1}**: ${bm.snippet || ''}\n`;
+          if (bm.note) md += `  - Nota: ${bm.note}\n`;
+        });
+      }
+
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(state.currentBook.title || 'livro').replace(/[^\w\-]+/g, '_')}_notas.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Notas exportadas como Markdown.', 'success');
+    });
+  }
 
   async function renderLibrary() {
     const libraryContainer = document.getElementById('library-books-grid');

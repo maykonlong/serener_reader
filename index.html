@@ -209,6 +209,15 @@
           <input type="checkbox" id="tts-continuous-toggle" class="accent-amber-600 w-3.5 h-3.5">
           <span class="font-medium">Leitura contínua (virar páginas automaticamente)</span>
         </label>
+        <div class="pt-2 flex items-center justify-between text-xs border-t border-amber-500/20">
+          <span>Sons Ambiente (foco):</span>
+          <div class="flex gap-1">
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="rain">Chuva</button>
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="brown">Marrom</button>
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="pink">Rosa</button>
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="white">Branco</button>
+          </div>
+        </div>
       </section>
 
       <!-- 1. Paletas de Cor -->
@@ -377,6 +386,10 @@
         <div id="bookmarks-list" class="space-y-1.5">
           <!-- Injetado dinamicamente -->
         </div>
+        <button id="export-notes-btn" class="w-full py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Exportar Notas & Marcadores
+        </button>
       </section>
 
       <!-- 5. Modos de Leitura Avançados -->
@@ -567,6 +580,7 @@
   <script src="js/annotations.js"></script>
   <script src="js/sync_engine.js"></script>
   <script src="js/tts_engine.js"></script>
+  <script src="js/ambient.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/app.js"></script>
 
