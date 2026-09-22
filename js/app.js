@@ -657,7 +657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           const savedBook = await window.sereneStorage.saveBook(newBookData);
           await openBook(savedBook);
-          renderLibraryDrawer();
+          renderLibrary();
           closeDrawer(libraryDrawer, libraryBackdrop);
         }
       } catch (err) {
@@ -691,7 +691,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const savedBook = await window.sereneStorage.saveBook(articleData);
         await openBook(savedBook);
-        renderLibraryDrawer();
+        renderLibrary();
         closeDrawer(libraryDrawer, libraryBackdrop);
         urlInput.value = '';
       } catch (err) {
@@ -1077,5 +1077,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Inicialização ---
   await loadPreferences();
   applyTypography();
+  
+  // Aguardar o carregamento das fontes para evitar erros de cálculo na paginação (Layout Reflow)
+  if (document.fonts) {
+    await document.fonts.ready;
+  }
+
   await loadInitialBook();
 });
