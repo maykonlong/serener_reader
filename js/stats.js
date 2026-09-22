@@ -13,7 +13,9 @@ class SereneStats {
       booksStarted: 0,
       sessionsCount: 0,
       lastReadDate: null,
-      streakDays: 0
+      streakDays: 0,
+      dailyGoalMinutes: 0,
+      dailyLog: {} // { 'YYYY-MM-DD': minutos }
     };
     this.bookId = null;
     this.active = false;
@@ -64,6 +66,9 @@ class SereneStats {
     if (!this.active) return;
     if (typeof document !== 'undefined' && document.hidden) return; // Não conta em segundo plano
     this.stats.totalReadingTimeMs += 15000;
+    // Registrar minutos no log diário (em incrementos de 15s)
+    const today = this._todayStr();
+    this.stats.dailyLog[today] = (this.stats.dailyLog[today] || 0) + 0.25;
     this._persist();
   }
 
@@ -87,14 +92,27 @@ class SereneStats {
 
   getSummary() {
     const minutes = Math.round(this.stats.totalReadingTimeMs / 60000);
+    const today = this._todayStr();
+    const todayMinutes = Math.round(this.stats.dailyLog[today] || 0);
+    const goal = this.stats.dailyGoalMinutes || 0;
     return {
       minutes,
       pagesRead: this.stats.pagesRead || 0,
       wordsRead: this.stats.wordsRead || 0,
       streakDays: this.stats.streakDays || 0,
       booksStarted: this.stats.booksStarted || 0,
-      wpm: this.getWpm()
+      wpm: this.getWpm(),
+      dailyGoalMinutes: goal,
+      todayMinutes,
+      goalProgress: goal > 0 ? Math.min(1, todayMinutes / goal) : 0
     };
+  }
+
+  async setDailyGoal(minutes) {
+    await this.init();
+    this.stats.dailyGoalMinutes = Math.max(0, parseInt(minutes) || 0);
+    await this.persist();
+    return this.getSummary();
   }
 
   formatDuration(minutes) {

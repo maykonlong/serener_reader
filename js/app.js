@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentPage: 0,
     currentChapter: 0,
     theme: 'paper',
+    autoTheme: false,
     fontFamily: 'Literata',
     fontSize: 18,
     maxWidthClass: 'max-w-xl',
@@ -131,6 +132,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const immersiveBtn = document.getElementById('immersive-btn');
   const searchCount = document.getElementById('search-count');
 
+  const autoThemeToggle = document.getElementById('auto-theme-toggle');
+  const ttsLangFilter = document.getElementById('tts-lang-filter');
+  const librarySearchInput = document.getElementById('library-search-input');
+  const librarySortSelect = document.getElementById('library-sort-select');
+  const shortcutsModal = document.getElementById('shortcuts-modal');
+  const shortcutsCloseBtn = document.getElementById('shortcuts-close-btn');
+
   const ttsPlayBtn = document.getElementById('tts-play-btn');
   const ttsRateSlider = document.getElementById('tts-rate-slider');
   const ttsRateVal = document.getElementById('tts-rate-val');
@@ -193,6 +201,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saved = await window.sereneStorage.getPreference('user_settings');
     if (saved) {
       if (saved.theme) applyTheme(saved.theme);
+      if (saved.autoTheme !== undefined) {
+        state.autoTheme = saved.autoTheme;
+        if (autoThemeToggle) autoThemeToggle.checked = saved.autoTheme;
+      }
       if (saved.fontFamily) state.fontFamily = saved.fontFamily;
       if (saved.fontSize) {
         state.fontSize = saved.fontSize;
@@ -251,6 +263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function savePreferences() {
     await window.sereneStorage.savePreference('user_settings', {
       theme: state.theme,
+      autoTheme: state.autoTheme,
       fontFamily: state.fontFamily,
       fontSize: state.fontSize,
       maxWidthClass: state.maxWidthClass,
@@ -597,6 +610,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Escape fecha qualquer gaveta/overlay aberto
     if (e.key === 'Escape') {
+      if (shortcutsModal && !shortcutsModal.classList.contains('hidden')) toggleShortcuts(false);
       if (settingsDrawer.classList.contains('translate-x-0')) closeDrawer(settingsDrawer, settingsBackdrop);
       if (libraryDrawer.classList.contains('translate-x-0')) closeDrawer(libraryDrawer, libraryBackdrop, true);
       if (tocDrawer && tocDrawer.classList.contains('translate-x-0')) closeDrawer(tocDrawer, tocBackdrop, true);
@@ -618,12 +632,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     if (e.key === 'i') { toggleImmersive(); return; }
+    if (e.key === '?') { toggleShortcuts(); return; }
 
     if (state.readingMode === 'scroll') return;
 
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextPage(); }
     else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevPage(); }
   });
+
+  // --- Modal de Atalhos de Teclado ---
+  function toggleShortcuts(forceState) {
+    if (!shortcutsModal) return;
+    const shouldShow = forceState !== undefined ? forceState : shortcutsModal.classList.contains('hidden');
+    if (shouldShow) {
+      shortcutsModal.classList.remove('hidden');
+      setTimeout(() => shortcutsModal.classList.remove('opacity-0'), 10);
+    } else {
+      shortcutsModal.classList.add('opacity-0');
+      setTimeout(() => shortcutsModal.classList.add('hidden'), 200);
+    }
+  }
+  if (shortcutsCloseBtn) shortcutsCloseBtn.addEventListener('click', () => toggleShortcuts(false));
+  if (shortcutsModal) {
+    shortcutsModal.addEventListener('click', (e) => {
+      if (e.target === shortcutsModal) toggleShortcuts(false);
+    });
+  }
 
   function dismissTouchHint() {
     if (touchHintEl) {
@@ -654,6 +688,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateActiveButtonStates();
     savePreferences();
+  }
+
+  // --- Tema Automático (claro de dia, escuro à noite) ---
+  function applyAutoTheme() {
+    const hour = new Date().getHours();
+    const isNight = hour >= 19 || hour < 7;
+    applyTheme(isNight ? 'night' : 'paper');
+  }
+
+  if (autoThemeToggle) {
+    autoThemeToggle.addEventListener('change', (e) => {
+      state.autoTheme = e.target.checked;
+      if (state.autoTheme) {
+        applyAutoTheme();
+      }
+      savePreferences();
+    });
   }
 
   async function applyTypography() {
@@ -1037,77 +1088,104 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // --- Importação de Ficheiros (EPUB, PDF, TXT, MD, DOCX, CBZ, FB2) ---
+  // --- Importação de Ficheiros (EPUB, PDF, TXT, MD, DOCX, CBZ, FB2) - múltiplos ---
+  async function importSingleFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const title = file.name.replace(/\.[^/.]+$/, "");
+
+    let newBookData = null;
+
+    if (ext === 'epub') {
+      const buffer = await file.arrayBuffer();
+      const parsedEPUB = await window.sereneEPUBParser.parse(buffer);
+      newBookData = {
+        title: parsedEPUB.title || title,
+        author: parsedEPUB.author || 'Desconhecido',
+        format: 'epub',
+        content: parsedEPUB.rawText,
+        cover: parsedEPUB.cover,
+        contentType: parsedEPUB.contentType || 'html',
+        toc: parsedEPUB.toc,
+        chapters: parsedEPUB.chapters
+      };
+    } else if (ext === 'pdf') {
+      const buffer = await file.arrayBuffer();
+      newBookData = {
+        title: title,
+        author: 'PDF Local',
+        format: 'pdf',
+        content: buffer
+      };
+    } else if (ext === 'cbz' || ext === 'docx') {
+      const buffer = await file.arrayBuffer();
+      if (ext === 'cbz') newBookData = await window.sereneFormatParsers.parseCBZ(buffer);
+      if (ext === 'docx') newBookData = await window.sereneFormatParsers.parseDOCX(buffer);
+      if (newBookData && !newBookData.title.includes('FB2')) newBookData.title = title; // Ajusta título caso o parser retorne nome genérico
+    } else {
+      // Arquivos baseados em texto (txt, md, fb2)
+      const text = await file.text();
+      if (ext === 'md') {
+        newBookData = await window.sereneFormatParsers.parseMarkdown(text);
+        newBookData.title = title;
+      } else if (ext === 'fb2') {
+        newBookData = await window.sereneFormatParsers.parseFB2(text);
+      } else {
+        newBookData = {
+          title: title,
+          author: 'Ficheiro Local',
+          format: 'txt',
+          content: text
+        };
+      }
+    }
+
+    if (newBookData) {
+      // Evitar duplicação: se já existe um livro com o mesmo título, atualiza o existente
+      const allBooks = await window.sereneStorage.getAllBooks();
+      const existing = allBooks.find(b => b.title === newBookData.title);
+      if (existing) newBookData.id = existing.id;
+
+      return await window.sereneStorage.saveBook(newBookData);
+    }
+    return null;
+  }
+
   if (fileInput) {
     fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
 
-      const ext = file.name.split('.').pop().toLowerCase();
-      const title = file.name.replace(/\.[^/.]+$/, "");
+      let imported = 0;
+      let failed = 0;
+      let lastBook = null;
 
-      try {
-        let newBookData = null;
-        
-        if (ext === 'epub') {
-          const buffer = await file.arrayBuffer();
-          const parsedEPUB = await window.sereneEPUBParser.parse(buffer);
-          newBookData = {
-            title: parsedEPUB.title || title,
-            author: parsedEPUB.author || 'Desconhecido',
-            format: 'epub',
-            content: parsedEPUB.rawText,
-            cover: parsedEPUB.cover,
-            contentType: parsedEPUB.contentType || 'html',
-            toc: parsedEPUB.toc,
-            chapters: parsedEPUB.chapters
-          };
-        } else if (ext === 'pdf') {
-          const buffer = await file.arrayBuffer();
-          newBookData = {
-            title: title,
-            author: 'PDF Local',
-            format: 'pdf',
-            content: buffer
-          };
-        } else if (ext === 'cbz' || ext === 'docx') {
-          const buffer = await file.arrayBuffer();
-          if (ext === 'cbz') newBookData = await window.sereneFormatParsers.parseCBZ(buffer);
-          if (ext === 'docx') newBookData = await window.sereneFormatParsers.parseDOCX(buffer);
-          if (newBookData && !newBookData.title.includes('FB2')) newBookData.title = title; // Ajusta título caso o parser retorne nome genérico
-        } else {
-          // Arquivos baseados em texto (txt, md, fb2)
-          const text = await file.text();
-          if (ext === 'md') {
-            newBookData = await window.sereneFormatParsers.parseMarkdown(text);
-            newBookData.title = title;
-          } else if (ext === 'fb2') {
-            newBookData = await window.sereneFormatParsers.parseFB2(text);
-          } else {
-            newBookData = {
-              title: title,
-              author: 'Ficheiro Local',
-              format: 'txt',
-              content: text
-            };
+      for (const file of files) {
+        try {
+          const savedBook = await importSingleFile(file);
+          if (savedBook) {
+            imported++;
+            lastBook = savedBook;
           }
+        } catch (err) {
+          failed++;
+          console.warn('Erro ao importar', file.name, err);
         }
-
-        if (newBookData) {
-          // Evitar duplicação: se já existe um livro com o mesmo título, atualiza o existente
-          const allBooks = await window.sereneStorage.getAllBooks();
-          const existing = allBooks.find(b => b.title === newBookData.title);
-          if (existing) newBookData.id = existing.id;
-
-          const savedBook = await window.sereneStorage.saveBook(newBookData);
-          await openBook(savedBook);
-          renderLibrary();
-          closeDrawer(libraryDrawer, libraryBackdrop);
-        }
-      } catch (err) {
-        showToast('Erro ao carregar livro: ' + err.message, 'error');
       }
-      
+
+      if (imported > 0) {
+        renderLibrary();
+        if (lastBook) await openBook(lastBook);
+        closeDrawer(libraryDrawer, libraryBackdrop);
+        showToast(
+          failed > 0
+            ? `${imported} livro(s) importado(s), ${failed} falha(s).`
+            : `${imported} livro(s) importado(s) com sucesso!`,
+          failed > 0 ? 'warning' : 'success'
+        );
+      } else {
+        showToast('Nenhum livro pôde ser importado.', 'error');
+      }
+
       e.target.value = ''; // Limpar input
     });
   }
@@ -1192,9 +1270,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (ttsVoiceSelect) {
     const populateVoices = () => {
       ttsVoiceSelect.innerHTML = '';
-      const voices = window.sereneTTS.getPortugueseVoices();
+      const langFilter = ttsLangFilter ? ttsLangFilter.value : 'all';
+      let voices = window.sereneTTS.getPortugueseVoices();
+      if (langFilter !== 'all') {
+        voices = voices.filter(v => v.lang.toLowerCase().startsWith(langFilter));
+      }
       if (voices.length === 0) {
-        ttsVoiceSelect.innerHTML = '<option value="">Vozes padrão do sistema...</option>';
+        ttsVoiceSelect.innerHTML = '<option value="">Sem vozes para este idioma...</option>';
         return;
       }
       voices.forEach(v => {
@@ -1207,6 +1289,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     setTimeout(populateVoices, 500); // Aguardar API TTS instanciar as vozes
     if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = populateVoices;
+
+    if (ttsLangFilter) {
+      ttsLangFilter.addEventListener('change', populateVoices);
+    }
 
     if (ttsVoiceApplyBtn) {
       ttsVoiceApplyBtn.addEventListener('click', () => {
@@ -1337,6 +1423,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (statsPanel && window.sereneStats) {
       await window.sereneStats.init();
       const s = window.sereneStats.getSummary();
+      const goalText = s.dailyGoalMinutes > 0
+        ? `<div class="mt-2">
+            <div class="flex justify-between text-[10px] mb-1">
+              <span>Meta diária</span>
+              <span class="font-bold">${s.todayMinutes}/${s.dailyGoalMinutes} min</span>
+            </div>
+            <div class="h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+              <div class="h-full bg-amber-500 transition-all duration-300" style="width: ${Math.round(s.goalProgress * 100)}%"></div>
+            </div>
+          </div>`
+        : '';
       statsPanel.innerHTML = `
         <div class="grid grid-cols-4 gap-2 text-center">
           <div class="p-2 rounded-lg bg-black/5 dark:bg-white/5">
@@ -1356,10 +1453,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="text-[9px] opacity-60 uppercase tracking-wide">Palavras/min</div>
           </div>
         </div>
+        ${goalText}
       `;
     }
 
-    const books = await window.sereneStorage.getAllBooks();
+    let books = await window.sereneStorage.getAllBooks();
+
+    // Filtrar por termo de busca
+    const term = (librarySearchInput ? librarySearchInput.value : '').trim().toLowerCase();
+    if (term) {
+      books = books.filter(b =>
+        (b.title || '').toLowerCase().includes(term) ||
+        (b.author || '').toLowerCase().includes(term)
+      );
+    }
+
+    // Ordenação
+    const sortMode = librarySortSelect ? librarySortSelect.value : 'recent';
+    if (sortMode === 'title') {
+      books.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    } else if (sortMode === 'author') {
+      books.sort((a, b) => (a.author || '').localeCompare(b.author || ''));
+    } else if (sortMode === 'progress') {
+      books.sort((a, b) => (b.pagePercentage || 0) - (a.pagePercentage || 0));
+    } else {
+      books.sort((a, b) => (b.lastReadAt || 0) - (a.lastReadAt || 0));
+    }
+
+    if (books.length === 0) {
+      libraryContainer.innerHTML = '<p class="text-xs opacity-50 italic text-center py-6">Nenhum livro encontrado.</p>';
+      return;
+    }
+
     libraryContainer.innerHTML = books.map(b => `
       <div class="book-card p-3 border border-current/20 rounded-xl flex flex-col justify-between cursor-pointer bg-black/5 dark:bg-white/5" onclick="window.selectBookFromLibrary('${b.id}')">
         <div class="flex items-start gap-3">
@@ -1376,6 +1501,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
     `).join('');
+  }
+
+  // Busca e ordenação na biblioteca (re-renderiza ao digitar/alterar)
+  if (librarySearchInput) {
+    librarySearchInput.addEventListener('input', () => renderLibrary());
+  }
+  if (librarySortSelect) {
+    librarySortSelect.addEventListener('change', () => renderLibrary());
   }
 
   window.selectBookFromLibrary = async (id) => {
@@ -1589,6 +1722,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // --- Meta Diária de Leitura ---
+  const dailyGoalInput = document.getElementById('daily-goal-input');
+  const dailyGoalSaveBtn = document.getElementById('daily-goal-save-btn');
+  if (dailyGoalSaveBtn && dailyGoalInput && window.sereneStats) {
+    window.sereneStats.init().then(() => {
+      const goal = window.sereneStats.getSummary().dailyGoalMinutes;
+      if (goal > 0) dailyGoalInput.value = goal;
+    });
+    dailyGoalSaveBtn.addEventListener('click', async () => {
+      const val = parseInt(dailyGoalInput.value);
+      await window.sereneStats.setDailyGoal(val || 0);
+      renderLibrary();
+      showToast(val > 0 ? `Meta diária definida: ${val} min/dia.` : 'Meta diária removida.', 'success');
+    });
+  }
+
   // --- Restaurar Padrões ---
   const resetSettingsBtn = document.getElementById('reset-settings-btn');
   if (resetSettingsBtn) {
@@ -1629,4 +1778,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadPreferences();
   await applyTypography();
   await loadInitialBook();
+  if (state.autoTheme) applyAutoTheme();
 });

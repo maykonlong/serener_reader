@@ -31,8 +31,13 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Anotações Livres:** Um caderno de notas acoplado por livro, salvo automaticamente.
 - **Importador de URL (Web Reader):** Cole o link de um artigo ou notícia da web, e o aplicativo extrairá o texto limpo, livre de anúncios, trazendo para dentro da sua biblioteca.
 - **Exportação/Backup:** Gere um arquivo `.json` portátil contendo todos os seus livros, progresso e notas para levar para outro dispositivo.
-- **Estatísticas de Leitura:** Acompanhe tempo total, páginas lidas, sequência de dias consecutivos e seu ritmo (palavras por minuto).
+- **Estatísticas de Leitura:** Acompanhe tempo total, páginas lidas, sequência de dias consecutivos, seu ritmo (palavras por minuto) e **meta diária de leitura** com barra de progresso.
 - **Busca Avançada:** Encontre termos no livro com navegação entre ocorrências (Enter / Shift+Enter) e destaque visual (marca-texto).
+- **Biblioteca com Filtro e Ordenação:** Pesquise por título/autor e ordene por recentes, título, autor ou progresso.
+- **Importação em Lote:** Arraste e solte múltiplos arquivos de uma vez (EPUB, PDF, TXT, MD, DOCX, CBZ, FB2).
+- **Tema Automático:** Alterne automaticamente entre claro (dia) e escuro (noite) conforme o horário.
+- **Mais Fontes e Vozes:** Novas tipografias (Atkinson Hyperlegible, Lexend, Vollkorn) e filtro de idioma no sintetizador de voz (TTS).
+- **Atalhos de Teclado:** Painel de ajuda com a tecla `?` para descobrir todos os atalhos.
 
 ---
 
