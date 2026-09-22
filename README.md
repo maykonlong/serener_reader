@@ -43,6 +43,8 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Sons Ambiente:** Ruído de chuva, marrom, rosa e branco gerados em tempo real (Web Audio API) para foco.
 - **Transições de Página:** Escolha entre Nenhuma, Esmaecer ou Deslizar para a virada de página.
 - **Exportação de Notas:** Exporte suas notas e marcadores do livro em Markdown.
+- **Coleções & Etiquetas:** Organize livros com etiquetas (tags), filtre a biblioteca e veja detalhes com avaliação por estrelas e estado (não lido / a ler / concluído).
+- **File System Access:** Abra e salve arquivos diretamente do sistema (onde o navegador suportar).
 
 ---
 

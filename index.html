@@ -480,6 +480,9 @@
         <span class="text-xs font-medium">Adicionar Livros Locais</span>
         <input type="file" id="file-input" accept=".epub,.pdf,.txt,.md,.docx,.cbz,.fb2" multiple class="hidden">
       </label>
+      <button id="fs-open-btn" class="w-full mt-2 py-2 px-3 rounded-xl border border-current/20 hover:bg-black/10 dark:hover:bg-white/10 transition text-xs font-medium">
+        Abrir do Sistema (File System Access)
+      </button>
 
       <div class="flex gap-2 mt-2">
         <input id="url-input" type="url" placeholder="Colar link de artigo..." 
@@ -497,6 +500,11 @@
           <option value="title">Título</option>
           <option value="author">Autor</option>
           <option value="progress">Progresso</option>
+        </select>
+      </div>
+      <div class="flex gap-2 mt-2">
+        <select id="library-tag-filter" class="flex-1 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current outline-none">
+          <option value="">Todas as etiquetas</option>
         </select>
       </div>
     </div>
@@ -544,6 +552,65 @@
         <div class="flex justify-between"><span>Ecrã inteiro</span><kbd class="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono">F</kbd></div>
         <div class="flex justify-between"><span>Fechar janelas</span><kbd class="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono">Esc</kbd></div>
         <div class="flex justify-between"><span>Este painel</span><kbd class="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono">?</kbd></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detalhes do Livro Modal -->
+  <div id="book-details-modal" class="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center hidden opacity-0 transition-opacity duration-200 p-4">
+    <div class="bg-white dark:bg-neutral-800 text-black dark:text-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="p-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
+        <h2 class="text-sm font-semibold">Detalhes do Livro</h2>
+        <button id="book-details-close-btn" class="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="flex items-start gap-3">
+          <div id="book-details-cover" class="w-16 h-20 bg-amber-700/20 text-amber-700 font-bold text-xs flex items-center justify-center rounded uppercase shrink-0">—</div>
+          <div class="overflow-hidden">
+            <h3 id="book-details-title" class="font-bold text-base truncate">—</h3>
+            <p id="book-details-author" class="text-xs opacity-70 truncate">—</p>
+            <span id="book-details-format" class="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 uppercase font-mono">—</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1"><span>Progresso</span><span id="book-details-progress" class="font-bold">0%</span></div>
+          <div class="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+            <div id="book-details-progress-fill" class="h-full bg-amber-500 transition-all" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div>
+          <span class="block text-xs font-medium mb-1.5">Avaliação</span>
+          <div id="book-details-rating" class="flex gap-1 text-xl">
+            <button data-star="1" class="star-btn text-current/30 hover:text-amber-500">★</button>
+            <button data-star="2" class="star-btn text-current/30 hover:text-amber-500">★</button>
+            <button data-star="3" class="star-btn text-current/30 hover:text-amber-500">★</button>
+            <button data-star="4" class="star-btn text-current/30 hover:text-amber-500">★</button>
+            <button data-star="5" class="star-btn text-current/30 hover:text-amber-500">★</button>
+          </div>
+        </div>
+
+        <div>
+          <span class="block text-xs font-medium mb-1.5">Estado</span>
+          <select id="book-details-status" class="w-full px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current outline-none focus:border-amber-500">
+            <option value="unread">Não lido</option>
+            <option value="reading">A ler</option>
+            <option value="finished">Concluído</option>
+          </select>
+        </div>
+
+        <div>
+          <span class="block text-xs font-medium mb-1.5">Etiquetas (separadas por vírgula)</span>
+          <input id="book-details-tags" type="text" placeholder="ficção, favoritos..."
+                 class="w-full px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
+        </div>
+      </div>
+      <div class="p-4 border-t border-black/10 dark:border-white/10 flex gap-2">
+        <button id="book-details-open-btn" class="flex-1 py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition active:scale-95">Ler Agora</button>
+        <button id="book-details-save-btn" class="flex-1 py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold transition active:scale-95">Guardar Alterações</button>
       </div>
     </div>
   </div>

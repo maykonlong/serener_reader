@@ -72,10 +72,13 @@ class SereneStorage {
         cover: bookData.cover || null,
         contentType: bookData.contentType || (bookData.format === 'txt' ? 'text' : 'html'),
         addedAt: bookData.addedAt || Date.now(),
-        lastReadAt: Date.now(),
+        lastReadAt: bookData.lastReadAt || Date.now(),
         currentPage: bookData.currentPage || 0,
         currentChapter: bookData.currentChapter || 0,
-        toc: bookData.toc || []
+        toc: bookData.toc || [],
+        rating: bookData.rating || 0,      // 0-5 estrelas
+        status: bookData.status || 'unread', // 'unread' | 'reading' | 'finished'
+        tags: Array.isArray(bookData.tags) ? bookData.tags : []
       };
 
       const request = store.put(bookToSave);

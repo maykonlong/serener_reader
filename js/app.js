@@ -138,8 +138,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ttsLangFilter = document.getElementById('tts-lang-filter');
   const librarySearchInput = document.getElementById('library-search-input');
   const librarySortSelect = document.getElementById('library-sort-select');
+  const libraryTagFilter = document.getElementById('library-tag-filter');
   const shortcutsModal = document.getElementById('shortcuts-modal');
   const shortcutsCloseBtn = document.getElementById('shortcuts-close-btn');
+
+  const bookDetailsModal = document.getElementById('book-details-modal');
+  const bookDetailsCloseBtn = document.getElementById('book-details-close-btn');
+  const bookDetailsCover = document.getElementById('book-details-cover');
+  const bookDetailsTitle = document.getElementById('book-details-title');
+  const bookDetailsAuthor = document.getElementById('book-details-author');
+  const bookDetailsFormat = document.getElementById('book-details-format');
+  const bookDetailsProgress = document.getElementById('book-details-progress');
+  const bookDetailsProgressFill = document.getElementById('book-details-progress-fill');
+  const bookDetailsRating = document.getElementById('book-details-rating');
+  const bookDetailsStatus = document.getElementById('book-details-status');
+  const bookDetailsTags = document.getElementById('book-details-tags');
+  const bookDetailsOpenBtn = document.getElementById('book-details-open-btn');
+  const bookDetailsSaveBtn = document.getElementById('book-details-save-btn');
 
   const ttsPlayBtn = document.getElementById('tts-play-btn');
   const ttsRateSlider = document.getElementById('tts-rate-slider');
@@ -642,6 +657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Escape fecha qualquer gaveta/overlay aberto
     if (e.key === 'Escape') {
       if (shortcutsModal && !shortcutsModal.classList.contains('hidden')) toggleShortcuts(false);
+      if (bookDetailsModal && !bookDetailsModal.classList.contains('hidden')) closeBookDetails();
       if (settingsDrawer.classList.contains('translate-x-0')) closeDrawer(settingsDrawer, settingsBackdrop);
       if (libraryDrawer.classList.contains('translate-x-0')) closeDrawer(libraryDrawer, libraryBackdrop, true);
       if (tocDrawer && tocDrawer.classList.contains('translate-x-0')) closeDrawer(tocDrawer, tocBackdrop, true);
@@ -1648,16 +1664,86 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
 
+      const fileName = `${(state.currentBook.title || 'livro').replace(/[^\w\-]+/g, '_')}_notas.md`;
+
+      // Tenta usar File System Access API (salvar como nativo)
+      if (window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(md);
+          await writable.close();
+          showToast('Notas exportadas com sucesso!', 'success');
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return; // Usuário cancelou
+          // fallback para download se falhar
+        }
+      }
+
       const blob = new Blob([md], { type: 'text/markdown' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${(state.currentBook.title || 'livro').replace(/[^\w\-]+/g, '_')}_notas.md`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
       showToast('Notas exportadas como Markdown.', 'success');
+    });
+  }
+
+  // --- Abrir arquivo via File System Access API (quando suportado) ---
+  const fsOpenBtn = document.getElementById('fs-open-btn');
+  if (fsOpenBtn) {
+    fsOpenBtn.addEventListener('click', async () => {
+      if (!window.showOpenFilePicker) {
+        if (fileInput) fileInput.click();
+        return;
+      }
+      try {
+        const handles = await window.showOpenFilePicker({
+          multiple: true,
+          types: [{
+            description: 'Livros',
+            accept: {
+              'application/epub+zip': ['.epub'],
+              'application/pdf': ['.pdf'],
+              'text/plain': ['.txt', '.md'],
+              'application/zip': ['.cbz', '.docx', '.fb2']
+            }
+          }]
+        });
+        const files = [];
+        for (const handle of handles) {
+          files.push(await handle.getFile());
+        }
+        if (files.length === 0) return;
+
+        let imported = 0;
+        let failed = 0;
+        let lastBook = null;
+        for (const file of files) {
+          try {
+            const savedBook = await importSingleFile(file);
+            if (savedBook) { imported++; lastBook = savedBook; }
+          } catch (err) { failed++; console.warn('Erro ao importar', file.name, err); }
+        }
+        if (imported > 0) {
+          renderLibrary();
+          if (lastBook) await openBook(lastBook);
+          closeDrawer(libraryDrawer, libraryBackdrop);
+          showToast(failed > 0 ? `${imported} livro(s) importado(s), ${failed} falha(s).` : `${imported} livro(s) importado(s)!`, failed > 0 ? 'warning' : 'success');
+        } else {
+          showToast('Nenhum livro pôde ser importado.', 'error');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') showToast('Erro ao abrir arquivos: ' + err.message, 'error');
+      }
     });
   }
 
@@ -1706,6 +1792,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let books = await window.sereneStorage.getAllBooks();
 
+    // Popular o filtro de etiquetas com todas as etiquetas existentes
+    if (libraryTagFilter) {
+      const allTags = new Set();
+      books.forEach(b => (Array.isArray(b.tags) ? b.tags : []).forEach(t => allTags.add(t)));
+      const currentValue = libraryTagFilter.value;
+      libraryTagFilter.innerHTML = '<option value="">Todas as etiquetas</option>' +
+        Array.from(allTags).sort().map(t => `<option value="${t}">${t}</option>`).join('');
+      libraryTagFilter.value = currentValue;
+    }
+
+    // Filtrar por etiqueta
+    if (libraryTagFilter && libraryTagFilter.value) {
+      const tag = libraryTagFilter.value;
+      books = books.filter(b => (Array.isArray(b.tags) && b.tags.includes(tag)));
+    }
+
     // Filtrar por termo de busca
     const term = (librarySearchInput ? librarySearchInput.value : '').trim().toLowerCase();
     if (term) {
@@ -1732,22 +1834,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    libraryContainer.innerHTML = books.map(b => `
-      <div class="book-card p-3 border border-current/20 rounded-xl flex flex-col justify-between cursor-pointer bg-black/5 dark:bg-white/5" onclick="window.selectBookFromLibrary('${b.id}')">
-        <div class="flex items-start gap-3">
+    libraryContainer.innerHTML = books.map(b => {
+      const stars = '★'.repeat(b.rating || 0) + '<span class="opacity-30">' + '★'.repeat(5 - (b.rating || 0)) + '</span>';
+      const statusLabel = b.status === 'finished' ? '<span class="text-emerald-500">Concluído</span>' : (b.status === 'reading' ? '<span class="text-amber-500">A ler</span>' : '');
+      const tagsHtml = (Array.isArray(b.tags) && b.tags.length > 0)
+        ? `<div class="flex flex-wrap gap-1 mt-1">${b.tags.slice(0, 3).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">${t}</span>`).join('')}</div>`
+        : '';
+      return `
+      <div class="book-card p-3 border border-current/20 rounded-xl flex flex-col justify-between bg-black/5 dark:bg-white/5">
+        <div class="flex items-start gap-3 cursor-pointer" onclick="window.selectBookFromLibrary('${b.id}')">
           ${b.cover ? `<img src="${b.cover}" class="w-12 h-16 object-cover rounded shadow-sm shrink-0">` : `<div class="w-12 h-16 bg-amber-700/20 text-amber-700 font-bold text-xs flex items-center justify-center rounded uppercase shrink-0">${b.format}</div>`}
           <div class="overflow-hidden">
             <h3 class="font-bold text-xs truncate">${b.title}</h3>
             <p class="text-[11px] opacity-70 truncate">${b.author}</p>
             <span class="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 uppercase font-mono">${b.format}</span>
+            ${b.rating ? `<div class="text-amber-500 text-[10px] mt-0.5">${stars}</div>` : ''}
+            ${statusLabel}
+            ${tagsHtml}
           </div>
         </div>
         <div class="mt-3 flex items-center justify-between text-[11px] opacity-60">
           <span>Pág. ${(b.currentPage || 0) + 1}</span>
-          <button onclick="event.stopPropagation(); window.deleteBookFromLibrary('${b.id}')" class="text-red-500 hover:underline">Excluir</button>
+          <div class="flex items-center gap-2">
+            <button onclick="event.stopPropagation(); window.openBookDetailsFromLibrary('${b.id}')" class="hover:underline opacity-80">Detalhes</button>
+            <button onclick="event.stopPropagation(); window.deleteBookFromLibrary('${b.id}')" class="text-red-500 hover:underline">Excluir</button>
+          </div>
         </div>
       </div>
-    `).join('');
+    `;}).join('');
   }
 
   // Busca e ordenação na biblioteca (re-renderiza ao digitar/alterar)
@@ -1757,6 +1871,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (librarySortSelect) {
     librarySortSelect.addEventListener('change', () => renderLibrary());
   }
+  if (libraryTagFilter) {
+    libraryTagFilter.addEventListener('change', () => renderLibrary());
+  }
 
   window.selectBookFromLibrary = async (id) => {
     const book = await window.sereneStorage.getBook(id);
@@ -1765,6 +1882,104 @@ document.addEventListener('DOMContentLoaded', async () => {
       closeDrawer(libraryDrawer, libraryBackdrop, true);
     }
   };
+
+  // --- Detalhes do Livro (avaliação, estado, etiquetas) ---
+  let detailsBookId = null;
+  let detailsRating = 0;
+
+  function renderDetailsStars() {
+    if (!bookDetailsRating) return;
+    bookDetailsRating.querySelectorAll('.star-btn').forEach(btn => {
+      const star = parseInt(btn.dataset.star);
+      if (star <= detailsRating) {
+        btn.classList.remove('text-current/30');
+        btn.classList.add('text-amber-500');
+      } else {
+        btn.classList.add('text-current/30');
+        btn.classList.remove('text-amber-500');
+      }
+    });
+  }
+
+  function openBookDetails(book) {
+    if (!bookDetailsModal) return;
+    detailsBookId = book.id;
+    detailsRating = book.rating || 0;
+
+    bookDetailsTitle.textContent = book.title || 'Sem Título';
+    bookDetailsAuthor.textContent = book.author || 'Autor Desconhecido';
+    bookDetailsFormat.textContent = book.format || 'txt';
+    if (book.cover) {
+      bookDetailsCover.innerHTML = `<img src="${book.cover}" class="w-16 h-20 object-cover rounded">`;
+    } else {
+      bookDetailsCover.innerHTML = (book.format || '—').toUpperCase();
+    }
+
+    const pct = Math.round((book.pagePercentage || 0) * 100);
+    bookDetailsProgress.textContent = `${pct}%`;
+    bookDetailsProgressFill.style.width = `${pct}%`;
+    bookDetailsStatus.value = book.status || 'unread';
+    bookDetailsTags.value = Array.isArray(book.tags) ? book.tags.join(', ') : '';
+
+    renderDetailsStars();
+
+    bookDetailsModal.classList.remove('hidden');
+    setTimeout(() => bookDetailsModal.classList.remove('opacity-0'), 10);
+  }
+
+  function closeBookDetails() {
+    if (!bookDetailsModal) return;
+    bookDetailsModal.classList.add('opacity-0');
+    setTimeout(() => bookDetailsModal.classList.add('hidden'), 200);
+  }
+
+  window.openBookDetailsFromLibrary = async (id) => {
+    const book = await window.sereneStorage.getBook(id);
+    if (book) openBookDetails(book);
+  };
+
+  if (bookDetailsCloseBtn) bookDetailsCloseBtn.addEventListener('click', closeBookDetails);
+  if (bookDetailsModal) {
+    bookDetailsModal.addEventListener('click', (e) => {
+      if (e.target === bookDetailsModal) closeBookDetails();
+    });
+  }
+
+  if (bookDetailsRating) {
+    bookDetailsRating.querySelectorAll('.star-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        detailsRating = parseInt(btn.dataset.star);
+        renderDetailsStars();
+      });
+    });
+  }
+
+  if (bookDetailsOpenBtn) {
+    bookDetailsOpenBtn.addEventListener('click', async () => {
+      if (!detailsBookId) return;
+      const book = await window.sereneStorage.getBook(detailsBookId);
+      if (book) {
+        closeBookDetails();
+        await openBook(book);
+        closeDrawer(libraryDrawer, libraryBackdrop, true);
+      }
+    });
+  }
+
+  if (bookDetailsSaveBtn) {
+    bookDetailsSaveBtn.addEventListener('click', async () => {
+      if (!detailsBookId) return;
+      const book = await window.sereneStorage.getBook(detailsBookId);
+      if (!book) return;
+      book.rating = detailsRating;
+      book.status = bookDetailsStatus.value;
+      book.tags = bookDetailsTags.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      await window.sereneStorage.saveBook(book);
+      closeBookDetails();
+      renderLibrary();
+      showToast('Detalhes do livro guardados.', 'success');
+    });
+  }
 
   window.deleteBookFromLibrary = async (id) => {
     if (confirm('Tem certeza que deseja remover este livro da sua biblioteca local?')) {
