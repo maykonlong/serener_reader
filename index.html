@@ -53,6 +53,7 @@
       <div id="search-container" class="hidden sm:flex items-center bg-black/5 dark:bg-white/5 rounded-full px-2 py-1 mr-1 transition-all">
         <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         <input type="text" id="search-input" placeholder="Buscar..." class="bg-transparent border-none outline-none text-[10px] w-20 px-1 py-0.5 text-current placeholder-current/50">
+        <span id="search-count" class="text-[9px] font-mono opacity-60 pr-1 select-none"></span>
       </div>
 
       <!-- Botão Capítulo / TOC -->
@@ -73,6 +74,13 @@
       <button id="fullscreen-btn" title="Ecrã Inteiro" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition hidden sm:block">
         <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+        </svg>
+      </button>
+
+      <!-- Botão Leitura Imersiva (esconder barras) -->
+      <button id="immersive-btn" title="Leitura Imersiva (I)" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition">
+        <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18v18H3zM9 3v18M15 3v18"/>
         </svg>
       </button>
 
@@ -125,6 +133,10 @@
       <div class="w-20 sm:w-36 h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
         <div id="progress-bar-fill" class="h-full bg-current transition-all duration-150" style="width: 0%;"></div>
       </div>
+      <span class="text-[9px] opacity-50 font-mono flex items-center gap-2">
+        <span id="progress-percent-text">0%</span>
+        <span id="reading-estimate-text"></span>
+      </span>
     </div>
 
     <button id="next-btn" class="p-2 sm:p-1 sm:px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 justify-center">
@@ -283,6 +295,32 @@
 
         <div class="space-y-1.5">
           <div class="flex justify-between text-xs font-medium">
+            <span>Espaçamento entre Linhas</span>
+            <span id="line-height-val" class="font-mono opacity-80">1.7x</span>
+          </div>
+          <input id="line-height-slider" type="range" min="1.1" max="2.6" step="0.1" value="1.7" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium">
+            <span>Espaço entre Parágrafos</span>
+            <span id="paragraph-spacing-val" class="font-mono opacity-80">20px</span>
+          </div>
+          <input id="paragraph-spacing-slider" type="range" min="0" max="60" step="2" value="20" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium">
+            <span>Alinhamento do Texto</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button data-align="justify" class="text-align-btn py-1.5 text-xs border border-current/20 rounded-lg transition font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-600">Justificado</button>
+            <button data-align="left" class="text-align-btn py-1.5 text-xs border border-current/20 rounded-lg transition opacity-70">Esquerda</button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs font-medium">
             <span>Modo de Leitura</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
@@ -395,8 +433,13 @@
         </button>
       </div>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar" id="library-books-grid">
-      <!-- Livros salvos no IndexedDB renderizados aqui -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+      <div id="library-stats" class="mb-1">
+        <!-- Painel de estatísticas de leitura renderizado dinamicamente -->
+      </div>
+      <div id="library-books-grid" class="space-y-3">
+        <!-- Livros salvos no IndexedDB renderizados aqui -->
+      </div>
     </div>
   </aside>
 
@@ -446,6 +489,7 @@
   <script src="js/annotations.js"></script>
   <script src="js/sync_engine.js"></script>
   <script src="js/tts_engine.js"></script>
+  <script src="js/stats.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Registro do Service Worker PWA -->

@@ -12,6 +12,9 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Modos Circadianos:** Paletas de cor curadas (Papel Natural, Sépia, Noite Conforto, Luz Vermelha Anti-insônia).
 - **Dimmer Universal & Filtro Âmbar:** Filtre a luz azul e reduza o brilho do fundo da tela sem depender do sistema operacional.
 - **Paginação Exata (Sem scroll vertical):** Um motor de paginação DOM matemático que garante que linhas nunca sejam cortadas ao meio. Pagine deslizando a tela ou com toques nas margens (Mobile-first).
+- **Tipografia Ajustável:** Controle fino de tamanho da fonte, espaçamento entre linhas, espaço entre parágrafos e alinhamento (justificado/esquerda).
+- **Leitura Imersiva:** Esconda as barras superiores e inferiores com um toque (ou tecla `I`) para leitura sem distrações.
+- **Estimativa de Tempo Restante:** Veja quantos minutos faltam para terminar o capítulo com base no seu ritmo real de leitura.
 
 ### ⚡ Retenção de Foco e Acessibilidade
 - **Sintetizador de Voz (TTS):** Escute seus livros com as vozes nativas do sistema. Possui Sleep Timer de até 30min para desligar automaticamente.
@@ -27,6 +30,8 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Anotações Livres:** Um caderno de notas acoplado por livro, salvo automaticamente.
 - **Importador de URL (Web Reader):** Cole o link de um artigo ou notícia da web, e o aplicativo extrairá o texto limpo, livre de anúncios, trazendo para dentro da sua biblioteca.
 - **Exportação/Backup:** Gere um arquivo `.json` portátil contendo todos os seus livros, progresso e notas para levar para outro dispositivo.
+- **Estatísticas de Leitura:** Acompanhe tempo total, páginas lidas, sequência de dias consecutivos e seu ritmo (palavras por minuto).
+- **Busca Avançada:** Encontre termos no livro com navegação entre ocorrências (Enter / Shift+Enter) e destaque visual (marca-texto).
 
 ---
 
@@ -73,6 +78,7 @@ python -m http.server 8000
   - `app.js`: Orquestrador principal da aplicação.
   - `pagination.js`: Motor matemático que lida com fatiamento de páginas.
   - `storage.js`: Manipulador de IndexedDB e salvamento de estado.
+  - `stats.js`: Rastreia tempo, páginas, palavras e sequência de leitura.
   - `tts_engine.js`: Wrapper em torno da Web Speech API.
   - `epub_parser.js`, `pdf_reader.js`, `format_parsers.js`: Decodificadores client-side de arquivos.
   - `url_reader.js`: Coletor e parseador de artigos web.

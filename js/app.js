@@ -69,13 +69,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     fontFamily: 'Literata',
     fontSize: 18,
     maxWidthClass: 'max-w-xl',
+    lineHeight: 1.7,
+    paragraphSpacing: 20,
+    textAlign: 'justify',
     subDimmerOpacity: 0,
     amberOpacity: 0,
     ttsRate: 1.0,
     isPdfMode: false,
     pdfText: '',
     pdfZoom: 1.0,
-    readingMode: 'paged' // 'paged' | 'scroll'
+    readingMode: 'paged', // 'paged' | 'scroll'
+    chapterWordCount: 0,
+    bookWordCount: 0
   };
 
   // --- Elementos da DOM ---
@@ -110,6 +115,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const amberVal = document.getElementById('amber-val');
   const fontSizeSlider = document.getElementById('font-size-slider');
   const fontSizeVal = document.getElementById('font-size-val');
+  const lineHeightSlider = document.getElementById('line-height-slider');
+  const lineHeightVal = document.getElementById('line-height-val');
+  const paragraphSpacingSlider = document.getElementById('paragraph-spacing-slider');
+  const paragraphSpacingVal = document.getElementById('paragraph-spacing-val');
+  const readingEstimateText = document.getElementById('reading-estimate-text');
+  const progressPercentText = document.getElementById('progress-percent-text');
 
   const prevBtn = document.getElementById('prev-btn');
   const nextBtn = document.getElementById('next-btn');
@@ -117,6 +128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tapNextZone = document.getElementById('tap-next-zone');
   const fileInput = document.getElementById('file-input');
   const fullscreenBtn = document.getElementById('fullscreen-btn');
+  const immersiveBtn = document.getElementById('immersive-btn');
+  const searchCount = document.getElementById('search-count');
 
   const ttsPlayBtn = document.getElementById('tts-play-btn');
   const ttsRateSlider = document.getElementById('tts-rate-slider');
@@ -149,6 +162,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // --- Sistema de Notificações Toast (substitui alerts invasivos) ---
+  function showToast(message, type = 'info', duration = 2600) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-2 px-4 pointer-events-none';
+      document.body.appendChild(container);
+    }
+    const colors = { info: 'bg-slate-800', success: 'bg-emerald-600', error: 'bg-red-600', warning: 'bg-amber-600' };
+    const el = document.createElement('div');
+    el.className = `toast-item ${colors[type] || colors.info} text-white text-xs sm:text-sm px-4 py-2.5 rounded-full shadow-lg`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('toast-out');
+      setTimeout(() => el.remove(), 300);
+    }, duration);
+  }
+
+  // --- Modo Imersivo (esconder barras para leitura sem distrações) ---
+  function toggleImmersive() {
+    document.body.classList.toggle('immersive');
+  }
+  if (immersiveBtn) immersiveBtn.addEventListener('click', toggleImmersive);
+
   // --- Carregamento de Preferências Salvas ---
   async function loadPreferences() {
     const saved = await window.sereneStorage.getPreference('user_settings');
@@ -161,6 +200,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (fontSizeVal) fontSizeVal.textContent = `${saved.fontSize}px`;
       }
       if (saved.maxWidthClass) state.maxWidthClass = saved.maxWidthClass;
+      if (saved.lineHeight) {
+        state.lineHeight = saved.lineHeight;
+        if (lineHeightSlider) lineHeightSlider.value = saved.lineHeight;
+        if (lineHeightVal) lineHeightVal.textContent = `${saved.lineHeight}x`;
+      }
+      if (saved.paragraphSpacing !== undefined) {
+        state.paragraphSpacing = saved.paragraphSpacing;
+        if (paragraphSpacingSlider) paragraphSpacingSlider.value = saved.paragraphSpacing;
+        if (paragraphSpacingVal) paragraphSpacingVal.textContent = `${saved.paragraphSpacing}px`;
+      }
+      if (saved.textAlign) state.textAlign = saved.textAlign;
       if (saved.subDimmerOpacity !== undefined) {
         state.subDimmerOpacity = saved.subDimmerOpacity;
         dimmerOverlay.style.opacity = saved.subDimmerOpacity;
@@ -204,6 +254,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       fontFamily: state.fontFamily,
       fontSize: state.fontSize,
       maxWidthClass: state.maxWidthClass,
+      lineHeight: state.lineHeight,
+      paragraphSpacing: state.paragraphSpacing,
+      textAlign: state.textAlign,
       subDimmerOpacity: state.subDimmerOpacity,
       amberOpacity: state.amberOpacity,
       bionicEnabled: window.sereneReadingModes ? window.sereneReadingModes.bionicEnabled : false,
@@ -247,13 +300,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     headerBookNameEl.textContent = book.title || 'Sem Título';
     await window.sereneStorage.savePreference('last_active_book_id', book.id);
 
+    // Iniciar sessão de leitura nas estatísticas
+    if (window.sereneStats) {
+      window.sereneStats.startSession(book.id);
+    }
+
     if (state.isPdfMode) {
       try {
         await window.serenePDFReader.loadDocument(book.content);
         state.pages = new Array(window.serenePDFReader.numPages).fill('');
         renderCurrentPage();
       } catch (err) {
-        alert('Erro ao carregar ficheiro PDF: ' + err.message);
+        showToast('Erro ao carregar PDF: ' + err.message, 'error');
       }
     } else {
       paginateAndRender(true);
@@ -280,6 +338,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       textToPaginate = state.currentBook.content || '';
     }
 
+    // Contagem de palavras do capítulo atual para a estimativa de tempo restante
+    state.chapterWordCount = (textToPaginate.replace(/<[^>]*>/g, ' ').match(/[\wÀ-ÿ'-]+/g) || []).length;
+
     state.pages = [];
     if (state.readingMode === 'scroll') {
       if (state.isPdfMode) {
@@ -295,7 +356,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, {
           fontFamily: state.fontFamily,
           fontSize: state.fontSize,
-          maxWidthClass: state.maxWidthClass
+          maxWidthClass: state.maxWidthClass,
+          lineHeight: state.lineHeight,
+          paragraphSpacing: state.paragraphSpacing,
+          textAlign: state.textAlign
         });
       }
     }
@@ -359,6 +423,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           window.sereneReadingModes.toggleLineFocus(false); // reset
           window.sereneReadingModes.toggleLineFocus(true);
         }
+
+        applySearchHighlight();
       }
 
       const total = state.pages.length;
@@ -398,6 +464,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const progressPercent = total > 1 ? ((currentNum - 1) / (total - 1)) * 100 : 100;
       progressBarFillEl.style.width = `${progressPercent}%`;
+      if (progressPercentText) progressPercentText.textContent = `${Math.round(progressPercent)}%`;
+
+      updateReadingEstimate();
 
       if (state.readingMode !== 'scroll' || state.isPdfMode) {
         prevBtn.style.opacity = state.currentPage === 0 ? "0.3" : "1";
@@ -415,6 +484,8 @@ document.addEventListener('DOMContentLoaded', async () => {
            window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter, 0, percent);
         }
       }
+
+      recordPageProgress();
     }, 50);
   }
 
@@ -439,6 +510,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.currentPage = 0;
       paginateAndRender();
     }
+  }
+
+  // Expor funções de navegação no escopo global (usado por botões inline no HTML)
+  window.nextPage = nextPage;
+  window.prevPage = prevPage;
+
+  // --- Registro de Progresso nas Estatísticas (páginas e palavras lidas) ---
+  let lastRecorded = { chapter: -1, page: -1 };
+  function recordPageProgress() {
+    if (!state.currentBook || state.isPdfMode) return;
+    if (!window.sereneStats) return;
+    if (state.currentChapter === lastRecorded.chapter && state.currentPage === lastRecorded.page) return;
+    lastRecorded = { chapter: state.currentChapter, page: state.currentPage };
+    const html = state.pages[state.currentPage] || '';
+    const words = (html.replace(/<[^>]*>/g, ' ').match(/[\wÀ-ÿ'-]+/g) || []).length;
+    window.sereneStats.recordPageTurn();
+    window.sereneStats.recordWords(words);
+  }
+
+  // --- Estimativa de Tempo Restante no Capítulo ---
+  function updateReadingEstimate() {
+    if (!readingEstimateText) return;
+    if (state.isPdfMode || state.pages.length <= 1) {
+      readingEstimateText.textContent = '';
+      return;
+    }
+    const remainingPages = state.pages.length - (state.currentPage + 1);
+    if (remainingPages <= 0) {
+      readingEstimateText.textContent = 'Fim do capítulo';
+      return;
+    }
+    const wordsPerPage = state.chapterWordCount > 0 ? state.chapterWordCount / state.pages.length : 200;
+    const remainingWords = Math.round(remainingPages * wordsPerPage);
+    const wpm = (window.sereneStats && window.sereneStats.getWpm()) || 220;
+    const minutes = Math.max(1, Math.round(remainingWords / wpm));
+    readingEstimateText.textContent = `≈ ${minutes} min restantes`;
   }
 
   // --- Eventos de Toque e Teclado ---
@@ -479,10 +586,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, { passive: true });
 
   window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) ? e.target.tagName : '';
+    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+    // Escape fecha qualquer gaveta/overlay aberto
+    if (e.key === 'Escape') {
+      if (settingsDrawer.classList.contains('translate-x-0')) closeDrawer(settingsDrawer, settingsBackdrop);
+      if (libraryDrawer.classList.contains('translate-x-0')) closeDrawer(libraryDrawer, libraryBackdrop, true);
+      if (tocDrawer && tocDrawer.classList.contains('translate-x-0')) closeDrawer(tocDrawer, tocBackdrop, true);
+      if (window.sereneRSVP && document.getElementById('rsvp-modal') && !document.getElementById('rsvp-modal').classList.contains('hidden')) {
+        window.sereneRSVP.close();
+      }
+      return;
+    }
+
     if (settingsDrawer.classList.contains('translate-x-0') || libraryDrawer.classList.contains('translate-x-0')) return;
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') nextPage();
-    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') prevPage();
-    else if (e.key === 'f') toggleFullscreen();
+    if (isTyping) return;
+
+    if (e.key === 'f') { toggleFullscreen(); return; }
+    if (e.key === '+' || e.key === '=') { if (zoomInBtn) zoomInBtn.click(); return; }
+    if (e.key === '-') { if (zoomOutBtn) zoomOutBtn.click(); return; }
+    if (e.key === 't') { if (ttsPlayBtn) ttsPlayBtn.click(); return; }
+    if (e.key === 'b') {
+      if (bionicToggle) { bionicToggle.checked = !bionicToggle.checked; bionicToggle.dispatchEvent(new Event('change')); }
+      return;
+    }
+    if (e.key === 'i') { toggleImmersive(); return; }
+
+    if (state.readingMode === 'scroll') return;
+
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextPage(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevPage(); }
   });
 
   function dismissTouchHint() {
@@ -525,9 +659,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.fontFamily = fontFamilyStr;
 
     if (state.fontFamily === 'OpenDyslexic') {
-      pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 my-auto font-opendyslexic`;
+      pageContentEl.className = `page-fade opacity-100 my-auto font-opendyslexic`;
     } else {
-      pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 my-auto`;
+      pageContentEl.className = `page-fade opacity-100 my-auto`;
     }
     
     // Reaplica classes essenciais de modo de leitura para evitar flickering no F5
@@ -540,6 +674,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     pageContentEl.style.fontFamily = fontFamilyStr;
     pageContentEl.style.fontSize = `${state.fontSize}px`;
+    pageContentEl.style.lineHeight = String(state.lineHeight);
+    pageContentEl.style.textAlign = state.textAlign;
     readingContainerEl.className = `w-full h-full flex flex-col justify-between px-6 sm:px-12 py-4 mx-auto overflow-hidden ${state.maxWidthClass}`;
 
     // Forçar o navegador a baixar e renderizar a fonte específica antes de continuarmos
@@ -604,6 +740,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Destacar botão de modo de leitura
     document.querySelectorAll('.reading-mode-btn').forEach(btn => {
       if (btn.dataset.mode === state.readingMode) {
+        btn.classList.add('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
+        btn.classList.remove('opacity-70', 'border-current/20');
+      } else {
+        btn.classList.remove('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
+        btn.classList.add('opacity-70', 'border-current/20');
+      }
+    });
+
+    // Destacar botão de alinhamento de texto
+    document.querySelectorAll('.text-align-btn').forEach(btn => {
+      if (btn.dataset.align === state.textAlign) {
         btn.classList.add('font-bold', 'bg-amber-500/20', 'text-amber-700', 'dark:text-amber-400', 'border-amber-600');
         btn.classList.remove('opacity-70', 'border-current/20');
       } else {
@@ -812,6 +959,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (lineHeightSlider) {
+    lineHeightSlider.addEventListener('input', (e) => {
+      state.lineHeight = parseFloat(e.target.value);
+      if (lineHeightVal) lineHeightVal.textContent = `${state.lineHeight.toFixed(1)}x`;
+      applyTypography();
+    });
+    lineHeightSlider.addEventListener('change', () => {
+      if (!state.isPdfMode) paginateAndRender();
+      savePreferences();
+    });
+  }
+
+  if (paragraphSpacingSlider) {
+    paragraphSpacingSlider.addEventListener('input', (e) => {
+      state.paragraphSpacing = parseInt(e.target.value);
+      if (paragraphSpacingVal) paragraphSpacingVal.textContent = `${state.paragraphSpacing}px`;
+      applyTypography();
+    });
+    paragraphSpacingSlider.addEventListener('change', () => {
+      if (!state.isPdfMode) paginateAndRender();
+      savePreferences();
+    });
+  }
+
+  document.querySelectorAll('.text-align-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      state.textAlign = btn.dataset.align;
+      updateActiveButtonStates();
+      await applyTypography();
+      if (!state.isPdfMode) paginateAndRender();
+    });
+  });
+
   document.querySelectorAll('.theme-select-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -917,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           closeDrawer(libraryDrawer, libraryBackdrop);
         }
       } catch (err) {
-        alert('Erro ao carregar livro: ' + err.message);
+        showToast('Erro ao carregar livro: ' + err.message, 'error');
       }
       
       e.target.value = ''; // Limpar input
@@ -951,7 +1132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeDrawer(libraryDrawer, libraryBackdrop);
         urlInput.value = '';
       } catch (err) {
-        alert('Erro ao importar artigo: ' + err.message);
+        showToast('Erro ao importar artigo: ' + err.message, 'error');
       } finally {
         urlImportBtn.textContent = 'Ler Web';
         urlImportBtn.disabled = false;
@@ -1101,7 +1282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         snippet: snippet
       });
 
-      alert('Marcador guardado com sucesso!');
+      showToast('Marcador guardado com sucesso!', 'success');
       renderBookmarksList();
     });
   }
@@ -1143,6 +1324,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderLibrary() {
     const libraryContainer = document.getElementById('library-books-grid');
     if (!libraryContainer) return;
+
+    // Renderizar painel de estatísticas de leitura
+    const statsPanel = document.getElementById('library-stats');
+    if (statsPanel && window.sereneStats) {
+      await window.sereneStats.init();
+      const s = window.sereneStats.getSummary();
+      statsPanel.innerHTML = `
+        <div class="grid grid-cols-4 gap-2 text-center">
+          <div class="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+            <div class="text-sm font-bold">${window.sereneStats.formatDuration(s.minutes)}</div>
+            <div class="text-[9px] opacity-60 uppercase tracking-wide">Tempo</div>
+          </div>
+          <div class="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+            <div class="text-sm font-bold">${s.pagesRead}</div>
+            <div class="text-[9px] opacity-60 uppercase tracking-wide">Páginas</div>
+          </div>
+          <div class="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+            <div class="text-sm font-bold">${s.streakDays}</div>
+            <div class="text-[9px] opacity-60 uppercase tracking-wide">Dias seguidos</div>
+          </div>
+          <div class="p-2 rounded-lg bg-black/5 dark:bg-white/5">
+            <div class="text-sm font-bold">${s.wpm || '—'}</div>
+            <div class="text-[9px] opacity-60 uppercase tracking-wide">Palavras/min</div>
+          </div>
+        </div>
+      `;
+    }
 
     const books = await window.sereneStorage.getAllBooks();
     libraryContainer.innerHTML = books.map(b => `
@@ -1230,43 +1438,107 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- Busca ---
-  const doSearch = () => {
+  // --- Busca (com navegação próxima/anterior e destaque de ocorrências) ---
+  const searchState = { term: '', results: [], index: -1 };
+
+  const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const doSearch = (forward = true) => {
     if (!state.currentBook) return;
     const term = searchInput.value.trim().toLowerCase();
-    if (!term) return;
-    
-    let foundPage = -1;
-    if (state.isPdfMode) {
-       alert("Busca global não suportada no modo PDF.");
-       return;
-    } else {
-       for (let i = 0; i < state.pages.length; i++) {
-         const div = document.createElement('div');
-         div.innerHTML = state.pages[i];
-         const text = div.textContent.toLowerCase();
-         if (text.includes(term)) {
-           foundPage = i;
-           break;
-         }
-       }
+    if (!term) {
+      clearSearch();
+      return;
     }
-    
-    if (foundPage !== -1) {
-       state.currentPage = foundPage;
-       window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter);
-       renderCurrentPage();
-       if (window.innerWidth < 640 && searchContainer) {
-         searchContainer.classList.add('hidden');
-       }
+    if (state.isPdfMode) {
+      showToast('Busca não suportada no modo PDF.', 'warning');
+      return;
+    }
+
+    // Reconstruir índice de resultados se o termo mudou
+    if (term !== searchState.term) {
+      searchState.term = term;
+      searchState.results = [];
+      searchState.index = -1;
+      for (let i = 0; i < state.pages.length; i++) {
+        const div = document.createElement('div');
+        div.innerHTML = state.pages[i];
+        if (div.textContent.toLowerCase().includes(term)) {
+          searchState.results.push(i);
+        }
+      }
+    }
+
+    if (searchState.results.length === 0) {
+      if (searchCount) searchCount.textContent = '0/0';
+      showToast('Termo não encontrado no livro.', 'warning');
+      return;
+    }
+
+    if (forward) {
+      searchState.index = (searchState.index + 1) % searchState.results.length;
     } else {
-       alert("Termo não encontrado no livro.");
+      searchState.index = (searchState.index - 1 + searchState.results.length) % searchState.results.length;
+    }
+
+    state.currentPage = searchState.results[searchState.index];
+    if (searchCount) searchCount.textContent = `${searchState.index + 1}/${searchState.results.length}`;
+    window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter);
+    renderCurrentPage();
+    if (window.innerWidth < 640 && searchContainer) {
+      searchContainer.classList.add('hidden');
     }
   };
 
+  function clearSearch() {
+    searchState.term = '';
+    searchState.results = [];
+    searchState.index = -1;
+    if (searchCount) searchCount.textContent = '';
+  }
+
+  function applySearchHighlight() {
+    if (!searchState.term) return;
+    const walker = document.createTreeWalker(pageContentEl, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentNode && n.parentNode.tagName === 'MARK') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+    });
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    const regex = new RegExp(`(${escapeRegExp(searchState.term)})`, 'gi');
+    textNodes.forEach(node => {
+      const text = node.nodeValue;
+      regex.lastIndex = 0;
+      if (!regex.test(text)) { regex.lastIndex = 0; return; }
+      regex.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let lastIndex = 0;
+      let m;
+      while ((m = regex.exec(text)) !== null) {
+        if (m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+        const mark = document.createElement('mark');
+        mark.className = 'search-highlight';
+        mark.textContent = m[0];
+        frag.appendChild(mark);
+        lastIndex = m.index + m[0].length;
+        if (m.index === regex.lastIndex) regex.lastIndex++;
+      }
+      if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
   if (searchInput) {
     searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doSearch();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSearch(!e.shiftKey);
+      } else if (e.key === 'Escape') {
+        clearSearch();
+        searchInput.value = '';
+      }
+    });
+    searchInput.addEventListener('input', () => {
+      if (searchInput.value.trim() === '') clearSearch();
     });
   }
   if (mobileSearchBtn) {
@@ -1286,8 +1558,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       exportBackupBtn.textContent = 'Aguarde...';
       try {
         await window.sereneSyncEngine.exportBackup();
+        showToast('Backup exportado com sucesso!', 'success');
       } catch (e) {
-        alert(e.message);
+        showToast(e.message, 'error');
       } finally {
         exportBackupBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Exportar`;
       }
@@ -1300,10 +1573,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!file) return;
       try {
         const count = await window.sereneSyncEngine.importBackup(file);
-        alert(`Backup restaurado com sucesso! ${count} livro(s) recuperados.`);
+        showToast(`Backup restaurado! ${count} livro(s) recuperados.`, 'success');
         renderLibrary(); // Refresh library
       } catch (err) {
-        alert(err.message);
+        showToast(err.message, 'error');
       }
       e.target.value = ''; // Reset input
     });
@@ -1319,6 +1592,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           fontFamily: 'Literata',
           fontSize: 18,
           maxWidthClass: 'max-w-xl',
+          lineHeight: 1.7,
+          paragraphSpacing: 20,
+          textAlign: 'justify',
           subDimmerOpacity: 0,
           amberOpacity: 0,
           bionicEnabled: false,

@@ -32,7 +32,7 @@ class SerenePaginator {
    * Fatia um texto bruto (ou HTML de capítulos) em páginas medidas com precisão
    * @param {string} text - Conteúdo do livro ou capítulo
    * @param {HTMLElement} containerEl - Container ativo de leitura no DOM
-   * @param {Object} options - { fontFamily, fontSize, maxWidthClass }
+   * @param {Object} options - { fontFamily, fontSize, maxWidthClass, lineHeight, paragraphSpacing, textAlign }
    * @returns {Array<string>} - Lista de páginas HTML formatadas
    */
   paginate(text, containerEl, options = {}) {
@@ -52,12 +52,20 @@ class SerenePaginator {
     const availableHeight = (rect.height || containerEl.clientHeight || 500) - paddingTop - paddingBottom - 16;
     const availableWidth = rect.width || containerEl.clientWidth || 400;
 
+    const lineHeight = options.lineHeight || 1.7;
+    const paraSpacing = (options.paragraphSpacing !== undefined && options.paragraphSpacing !== null) ? options.paragraphSpacing : 20;
+    const textAlign = options.textAlign || 'justify';
+    const indent = (options.indent !== undefined) ? options.indent : 16;
+
     this.measurer.style.width = `${availableWidth}px`;
     this.measurer.style.fontFamily = options.fontFamily ? `"${options.fontFamily}", Georgia, serif` : computedStyle.fontFamily;
     this.measurer.style.fontSize = options.fontSize ? `${options.fontSize}px` : computedStyle.fontSize;
-    this.measurer.style.lineHeight = computedStyle.lineHeight || '1.7';
-    this.measurer.style.textAlign = computedStyle.textAlign || 'justify';
+    this.measurer.style.lineHeight = String(lineHeight);
+    this.measurer.style.textAlign = textAlign;
     this.measurer.style.hyphens = 'auto';
+
+    // Template de parágrafo com estilos inline para garantir medição e exibição idênticas
+    const para = (t) => `<p style="margin:0 0 ${paraSpacing}px 0; line-height:${lineHeight}; text-indent:${indent}px; text-align:${textAlign};">${this.escapeHtml(t)}</p>`;
 
     // Dividir em parágrafos preservando quebras duplas
     const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim() !== '');
@@ -68,7 +76,7 @@ class SerenePaginator {
 
     for (let i = 0; i < paragraphs.length; i++) {
       const paragraph = paragraphs[i].trim();
-      const pHTML = `<p class="mb-3.5 indent-3 sm:indent-5 leading-relaxed">${this.escapeHtml(paragraph)}</p>`;
+      const pHTML = para(paragraph);
 
       // Tentar adicionar o parágrafo atual ao acumulador
       const testHTML = [...currentAcc, pHTML].join('');
@@ -99,7 +107,7 @@ class SerenePaginator {
             if (!cleanSentence) continue;
 
             const testSentences = [...sentenceAcc, cleanSentence].join(' ');
-            const testSentHTML = `<p class="mb-3.5 indent-3 sm:indent-5 leading-relaxed">${this.escapeHtml(testSentences)}</p>`;
+            const testSentHTML = para(testSentences);
             
             this.measurer.innerHTML = testSentHTML;
 
@@ -108,7 +116,7 @@ class SerenePaginator {
             } else {
               if (sentenceAcc.length > 0) {
                 const pageText = sentenceAcc.join(' ');
-                pages.push(`<p class="mb-3.5 indent-3 sm:indent-5 leading-relaxed">${this.escapeHtml(pageText)}</p>`);
+                pages.push(para(pageText));
                 sentenceAcc = [cleanSentence];
               } else {
                 // Frase extrema: adicionar diretamente
@@ -118,7 +126,7 @@ class SerenePaginator {
           }
 
           if (sentenceAcc.length > 0) {
-            currentAcc.push(`<p class="mb-3.5 indent-3 sm:indent-5 leading-relaxed">${this.escapeHtml(sentenceAcc.join(' '))}</p>`);
+            currentAcc.push(para(sentenceAcc.join(' ')));
           }
         }
       }
