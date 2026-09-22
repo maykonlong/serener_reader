@@ -650,9 +650,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (newBookData) {
+          // Evitar duplicação: se já existe um livro com o mesmo título, atualiza o existente
+          const allBooks = await window.sereneStorage.getAllBooks();
+          const existing = allBooks.find(b => b.title === newBookData.title);
+          if (existing) newBookData.id = existing.id;
+
           const savedBook = await window.sereneStorage.saveBook(newBookData);
           await openBook(savedBook);
-          closeDrawer(settingsDrawer, settingsBackdrop);
+          renderLibraryDrawer();
+          closeDrawer(libraryDrawer, libraryBackdrop);
         }
       } catch (err) {
         alert('Erro ao carregar livro: ' + err.message);
@@ -677,9 +683,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       try {
         const articleData = await window.sereneURLReader.importFromURL(url);
+        
+        // Evitar duplicação: verifica por URL ou título exato
+        const allBooks = await window.sereneStorage.getAllBooks();
+        const existing = allBooks.find(b => b.sourceUrl === url || b.title === articleData.title);
+        if (existing) articleData.id = existing.id;
+
         const savedBook = await window.sereneStorage.saveBook(articleData);
         await openBook(savedBook);
-        closeDrawer(settingsDrawer, settingsBackdrop);
+        renderLibraryDrawer();
+        closeDrawer(libraryDrawer, libraryBackdrop);
         urlInput.value = '';
       } catch (err) {
         alert('Erro ao importar artigo: ' + err.message);
