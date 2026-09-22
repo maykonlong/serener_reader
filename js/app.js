@@ -286,8 +286,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    if (!isInitialLoad && state.pages.length > 0 && percentage > 0 && state.readingMode !== 'scroll') {
-       state.currentPage = Math.floor(percentage * state.pages.length);
+    if (state.pages.length > 0 && state.readingMode !== 'scroll') {
+       if (!isInitialLoad && percentage > 0) {
+         state.currentPage = Math.floor(percentage * state.pages.length);
+       } else if (isInitialLoad && state.currentBook && state.currentBook.pagePercentage !== undefined) {
+         // Preservar 100% o texto exato da página baseado na porcentagem (previne bugs ao alterar tamanho de tela)
+         state.currentPage = Math.floor(state.currentBook.pagePercentage * state.pages.length);
+       }
     }
 
     if (state.currentPage >= state.pages.length) {
@@ -367,9 +372,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (state.currentBook && state.currentBook.id) {
         if (state.readingMode === 'scroll' && !state.isPdfMode) {
-           // Scroll mode: não salva a página, será atualizado pelo evento onscroll
+           // Scroll mode: salvamos apenas a posição absoluta, que é disparada pelo evento de scroll
         } else {
-           window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter);
+           const percent = total > 0 ? state.currentPage / total : 0;
+           window.sereneStorage.updateProgress(state.currentBook.id, state.currentPage, state.currentChapter, 0, percent);
         }
       }
     }, 50);
@@ -482,9 +488,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.fontFamily = fontFamilyStr;
 
     if (state.fontFamily === 'OpenDyslexic') {
-      pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto font-opendyslexic`;
+      pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 my-auto font-opendyslexic`;
     } else {
-      pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto`;
+      pageContentEl.className = `page-fade leading-relaxed text-justify opacity-100 my-auto`;
+    }
+    
+    // Reaplica classes essenciais de modo de leitura para evitar flickering no F5
+    if (state.readingMode === 'scroll' && !state.isPdfMode) {
+      pageContentEl.classList.remove('my-auto');
+      pageContentEl.classList.add('overflow-y-auto', 'scroll-mode-active');
+    } else {
+      pageContentEl.classList.add('overflow-hidden');
     }
     
     pageContentEl.style.fontFamily = fontFamilyStr;
@@ -1148,7 +1162,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           amberOpacity: 0,
           bionicEnabled: false,
           lineFocusEnabled: false,
-          rulerEnabled: false
+          rulerEnabled: false,
+          readingMode: 'paged'
         });
         window.location.reload();
       }
