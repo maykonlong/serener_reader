@@ -1420,6 +1420,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
+  // --- OCR (Reconhecimento de texto em PDF escaneado) ---
+  const ocrPageBtn = document.getElementById('ocr-page-btn');
+  if (ocrPageBtn) {
+    ocrPageBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!state.isPdfMode) {
+        showToast('O OCR está disponível apenas no modo PDF.', 'warning');
+        return;
+      }
+      if (typeof Tesseract === 'undefined') {
+        showToast('Biblioteca OCR não carregada.', 'error');
+        return;
+      }
+
+      ocrPageBtn.disabled = true;
+      ocrPageBtn.textContent = 'A processar...';
+
+      try {
+        const pageNum = state.currentPage + 1;
+        const canvas = await window.serenePDFReader.renderPageToCanvas(pageNum, 2.0);
+        if (!canvas) {
+          throw new Error('Não foi possível renderizar a página.');
+        }
+
+        // Criar worker OCR (uma vez por sessão seria melhor, mas aqui criamos sob demanda)
+        const worker = await Tesseract.createWorker('por+eng');
+        const ret = await worker.recognize(canvas);
+        await worker.terminate();
+
+        const text = (ret && ret.data && ret.data.text) ? ret.data.text.trim() : '';
+        if (!text) {
+          showToast('Nenhum texto reconhecido na página.', 'warning');
+          return;
+        }
+
+        // Salvar o texto reconhecido como texto da página atual (para TTS e busca)
+        state.pdfText = text;
+        window.serenePDFReader.pageTextCache.set(pageNum, text);
+        showToast('Texto reconhecido! Use "Ouvir Página" para escutar.', 'success');
+
+        // Iniciar TTS automaticamente com o texto reconhecido (opcional)
+        if (window.sereneTTS) {
+          window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
+          window.sereneTTS.speak(text);
+        }
+      } catch (err) {
+        console.warn('Erro no OCR:', err);
+        showToast('Erro no OCR: ' + err.message, 'error');
+      } finally {
+        ocrPageBtn.disabled = false;
+        ocrPageBtn.textContent = 'Extrair Texto';
+      }
+    });
+  }
+
   // --- Leitura Contínua (virar página automaticamente ao terminar o TTS) ---
   function getPageTextToRead() {
     if (state.isPdfMode) {

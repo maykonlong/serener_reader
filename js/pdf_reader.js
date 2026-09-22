@@ -275,6 +275,29 @@ class SerenePDFReader {
     }
     this.renderedPages.clear();
   }
+
+  /**
+   * Renderiza uma página do PDF num canvas de alta resolução (para OCR).
+   * @param {number} pageNum - Número da página (1-indexed)
+   * @param {number} scale - Escala de renderização (ex.: 2.0 = 2x)
+   * @returns {Promise<HTMLCanvasElement|null>}
+   */
+  async renderPageToCanvas(pageNum, scale = 2.0) {
+    if (!this.pdfDoc || pageNum < 1 || pageNum > this.numPages) return null;
+    try {
+      const page = await this.pdfDoc.getPage(pageNum);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      await page.render({ canvasContext: context, viewport }).promise;
+      return canvas;
+    } catch (err) {
+      console.error(`Erro ao renderizar página ${pageNum} para OCR:`, err);
+      return null;
+    }
+  }
 }
 
 window.serenePDFReader = new SerenePDFReader();
