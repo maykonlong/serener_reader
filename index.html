@@ -212,8 +212,11 @@
         </label>
         <div class="pt-2 flex items-center justify-between text-xs border-t border-amber-500/20">
           <span>Sons Ambiente (foco):</span>
-          <div class="flex gap-1">
+          <div class="flex gap-1 flex-wrap justify-end">
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="rain">Chuva</button>
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="ocean">Oceano</button>
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="wind">Vento</button>
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="fire">Fogo</button>
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="brown">Marrom</button>
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="pink">Rosa</button>
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="white">Branco</button>
@@ -422,6 +425,10 @@
           <label class="flex items-center gap-2 cursor-pointer text-xs">
             <input type="checkbox" id="ruler-toggle" class="accent-amber-600 w-3.5 h-3.5">
             <span class="font-medium">Régua de Leitura</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-xs">
+            <input type="checkbox" id="high-contrast-toggle" class="accent-amber-600 w-3.5 h-3.5">
+            <span class="font-medium">Alto Contraste</span>
           </label>
           <button id="open-rsvp-btn" class="mt-2 w-full py-2 px-3 rounded-lg border border-current/20 hover:bg-black/5 dark:hover:bg-white/5 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>

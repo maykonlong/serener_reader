@@ -1,8 +1,9 @@
-const CACHE_NAME = 'serene-reader-v13';
+const CACHE_NAME = 'serene-reader-v14';
 const ASSETS = [
   './',
   './index.html',
   './css/styles.css',
+  './icons/icon.svg',
   './js/storage.js',
   './js/pagination.js',
   './js/epub_parser.js',

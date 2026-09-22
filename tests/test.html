@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SereneReader - Testes</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #f7f4eb; color: #242424; }
+    h1 { font-size: 18px; }
+    .pass { color: #059669; }
+    .fail { color: #dc2626; }
+    li { margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <h1>Testes do SereneReader (lógica pura)</h1>
+  <ul id="results"></ul>
+
+  <script src="../js/storage.js"></script>
+  <script src="../js/i18n.js"></script>
+  <script src="../js/stats.js"></script>
+  <script>
+    const resultsEl = document.getElementById('results');
+    let passed = 0, failed = 0;
+
+    function assert(cond, name) {
+      const li = document.createElement('li');
+      if (cond) {
+        li.className = 'pass';
+        li.textContent = '✔ ' + name;
+        passed++;
+      } else {
+        li.className = 'fail';
+        li.textContent = '✘ ' + name;
+        failed++;
+      }
+      resultsEl.appendChild(li);
+    }
+
+    function assertEqual(actual, expected, name) {
+      assert(JSON.stringify(actual) === JSON.stringify(expected), name + ' (esperado ' + JSON.stringify(expected) + ', obteve ' + JSON.stringify(actual) + ')');
+    }
+
+    // --- i18n ---
+    assertEqual(window.sereneI18n.t('library'), 'Biblioteca', 'i18n: pt default');
+    window.sereneI18n.setLang('en');
+    assertEqual(window.sereneI18n.t('library'), 'Library', 'i18n: en');
+    window.sereneI18n.setLang('es');
+    assertEqual(window.sereneI18n.t('library'), 'Biblioteca', 'i18n: es');
+    window.sereneI18n.setLang('pt');
+
+    // --- stats: formatDuration ---
+    assertEqual(window.sereneStats.formatDuration(0), '0 min', 'stats: 0 min');
+    assertEqual(window.sereneStats.formatDuration(45), '45 min', 'stats: 45 min');
+    assertEqual(window.sereneStats.formatDuration(60), '1h', 'stats: 1h');
+    assertEqual(window.sereneStats.formatDuration(75), '1h 15min', 'stats: 1h 15min');
+
+    // --- stats: getWpm com dados zerados ---
+    assertEqual(window.sereneStats.getWpm(), 0, 'stats: wpm zero');
+
+    // --- stats: _todayStr e _daysAgoStr (formato YYYY-MM-DD) ---
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(window.sereneStats._todayStr()), 'stats: formato _todayStr');
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(window.sereneStats._daysAgoStr(1)), 'stats: formato _daysAgoStr');
+
+    // Resumo final
+    const summary = document.createElement('li');
+    summary.style.fontWeight = 'bold';
+    summary.style.marginTop = '12px';
+    summary.textContent = `${passed} passou, ${failed} falhou.`;
+    resultsEl.appendChild(summary);
+    document.title = (failed === 0 ? '✔ ' : '✘ ') + document.title;
+  </script>
+</body>
+</html>

@@ -172,6 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const bionicToggle = document.getElementById('bionic-toggle');
   const linefocusToggle = document.getElementById('linefocus-toggle');
   const rulerToggle = document.getElementById('ruler-toggle');
+  const highContrastToggle = document.getElementById('high-contrast-toggle');
   const openRsvpBtn = document.getElementById('open-rsvp-btn');
   const searchInput = document.getElementById('search-input');
   const mobileSearchBtn = document.getElementById('mobile-search-btn');
@@ -280,6 +281,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (ttsContinuousToggle) ttsContinuousToggle.checked = saved.ttsContinuous;
       }
       if (saved.pageTransition) state.pageTransition = saved.pageTransition;
+      if (saved.highContrast) {
+        document.body.classList.add('high-contrast');
+        if (highContrastToggle) highContrastToggle.checked = true;
+      }
       if (saved.language) {
         if (window.sereneI18n) {
           window.sereneI18n.setLang(saved.language);
@@ -312,6 +317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       pdfZoom: state.pdfZoom,
       pageTransition: state.pageTransition,
       ttsContinuous: window.sereneTTS ? window.sereneTTS.autoContinue : false,
+      highContrast: document.body.classList.contains('high-contrast'),
       language: window.sereneI18n ? window.sereneI18n.lang : 'pt'
     });
   }
@@ -1641,6 +1647,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (highContrastToggle) {
+    highContrastToggle.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.body.classList.add('high-contrast');
+      } else {
+        document.body.classList.remove('high-contrast');
+      }
+      savePreferences();
+    });
+  }
+
   if (openRsvpBtn) {
     openRsvpBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2533,4 +2550,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.autoTheme) applyAutoTheme();
   // Aplicar i18n ao carregar (caso ainda não tenha sido aplicado)
   if (window.sereneI18n) window.sereneI18n.apply();
+
+  // --- Onboarding (primeira execução) ---
+  (async function onboarding() {
+    try {
+      const seen = await window.sereneStorage.getPreference('onboarding_seen', false);
+      if (!seen) {
+        showToast('Bem-vindo! Pressione ? para ver os atalhos de teclado.', 'info', 6000);
+        await window.sereneStorage.savePreference('onboarding_seen', true);
+      }
+    } catch (e) {
+      console.warn('Erro no onboarding:', e);
+    }
+  })();
 });

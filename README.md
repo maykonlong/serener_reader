@@ -40,7 +40,7 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Atalhos de Teclado:** Painel de ajuda com a tecla `?` para descobrir todos os atalhos.
 - **Leitura Contínua por Voz:** O TTS vira as páginas (e capítulos) automaticamente, com controles na tela de bloqueio via Media Session API.
 - **Destaque palavra-a-palavra:** O TTS marca a palavra que está a ser lida (modo karaokê).
-- **Sons Ambiente:** Ruído de chuva, marrom, rosa e branco gerados em tempo real (Web Audio API) para foco.
+- **Sons Ambiente:** Ruído de chuva, oceano, vento, fogo, marrom, rosa e branco gerados em tempo real (Web Audio API) para foco.
 - **Transições de Página:** Escolha entre Nenhuma, Esmaecer ou Deslizar para a virada de página.
 - **Exportação de Notas:** Exporte suas notas e marcadores do livro em Markdown.
 - **Coleções & Etiquetas:** Organize livros com etiquetas (tags), filtre a biblioteca e veja detalhes com avaliação por estrelas e estado (não lido / a ler / concluído).
@@ -50,6 +50,8 @@ Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto do
 - **Destaques Coloridos:** Selecione texto no livro e marque com 4 cores (amarelo, verde, azul, rosa), com lista e remoção.
 - **Backup com Lembrete:** Lembra automaticamente de exportar seus dados a cada 7 dias.
 - **Idioma da Interface:** Português, Inglês e Espanhol (i18n).
+- **Alto Contraste:** Modo de leitura com contraste reforçado.
+- **Onboarding:** Dica de boas-vindas na primeira execução.
 
 ---
 
@@ -100,6 +102,32 @@ python -m http.server 8000
   - `tts_engine.js`: Wrapper em torno da Web Speech API.
   - `epub_parser.js`, `pdf_reader.js`, `format_parsers.js`: Decodificadores client-side de arquivos.
   - `url_reader.js`: Coletor e parseador de artigos web.
+
+---
+
+## 🧪 Testes
+
+Testes de lógica pura (i18n e estatísticas) podem ser executados abrindo `tests/test.html` no navegador.
+
+---
+
+## 🗺️ Roadmap & Funcionalidades Futuras
+
+Funcionalidades que **dependem de backend ou chave de API externa** (não implementadas por manter o app 100% offline/client-side):
+
+| Funcionalidade | O que precisa | Notas |
+|---|---|---|
+| 🤖 IA — resumo e Q&A sobre o livro | Chave de API de LLM (OpenAI, Anthropic Claude ou Google Gemini) | Opcional; mantê-la desligada por padrão para preservar privacidade. |
+| 🔄 Sincronização em nuvem | Backend (Supabase, Firebase ou PocketBase) | Necessário para sincronizar progresso/notas entre dispositivos. |
+| 🔐 Criptografia E2E | Combinada à sincronização em nuvem | Usaria a Web Crypto API (`SubtleCrypto`). |
+
+Limitações técnicas conhecidas (sem dependência externa, mas com alto custo de refatoração):
+
+| Item | Motivo |
+|---|---|
+| 🖥️ Spread / 2 páginas lado a lado | Requer refatoração profunda do motor de paginação (que mede pixels no DOM). |
+| ⚙️ Web Workers | O motor de paginação depende do DOM, que não existe em workers. |
+| 📦 Vendoring das bibliotecas CDN | Hoje Tailwind, JSZip, PDF.js, DOMPurify, marked, mammoth, Readability e tesseract.js são carregados via CDN. Para **offline total**, baixar e versionar cada biblioteca localmente. |
 
 ---
 

@@ -312,3 +312,22 @@ mark.hl-yellow { background: rgba(251, 191, 36, 0.35); color: inherit; border-ra
 mark.hl-green  { background: rgba(52, 211, 153, 0.35); color: inherit; border-radius: 2px; padding: 0 1px; }
 mark.hl-blue   { background: rgba(96, 165, 250, 0.35); color: inherit; border-radius: 2px; padding: 0 1px; }
 mark.hl-pink   { background: rgba(244, 114, 182, 0.35); color: inherit; border-radius: 2px; padding: 0 1px; }
+
+/* ==========================================================================
+   Modo de Alto Contraste
+   ========================================================================== */
+body.high-contrast #page-content {
+  text-shadow: none;
+}
+
+body.high-contrast #page-content p,
+body.high-contrast #page-content li {
+  font-weight: 500;
+}
+
+body.high-contrast #page-content h1,
+body.high-contrast #page-content h2,
+body.high-contrast #page-content h3,
+body.high-contrast #page-content h4 {
+  font-weight: 800;
+}
