@@ -5,7 +5,11 @@
 
 class SereneURLReader {
   constructor() {
-    this.proxyUrl = 'https://api.allorigins.win/raw?url=';
+    // Array de proxies CORS gratuitos para tolerância a falhas
+    this.proxies = [
+      'https://corsproxy.io/?',
+      'https://api.allorigins.win/raw?url='
+    ];
   }
 
   async importFromURL(url) {
@@ -14,14 +18,30 @@ class SereneURLReader {
     }
 
     try {
-      // 1. Fetch the raw HTML content via public CORS proxy
-      const response = await fetch(this.proxyUrl + encodeURIComponent(url));
-      
-      if (!response.ok) {
-        throw new Error(`Falha ao carregar a página: ${response.status} ${response.statusText}`);
+      // 1. Tentar fazer fetch usando proxies CORS com fallback
+      let response = null;
+      let htmlText = '';
+      let fetchError = null;
+
+      for (const proxy of this.proxies) {
+        try {
+          const fetchUrl = proxy.includes('allorigins') 
+            ? proxy + encodeURIComponent(url) 
+            : proxy + encodeURIComponent(url);
+            
+          response = await fetch(fetchUrl);
+          if (response.ok) {
+            htmlText = await response.text();
+            break; // Sucesso, sai do loop
+          }
+        } catch (e) {
+          fetchError = e; // Guarda o erro para tentar o próximo proxy
+        }
       }
-      
-      const htmlText = await response.text();
+
+      if (!htmlText) {
+        throw new Error(`Nenhum proxy conseguiu acessar a página. Verifique sua conexão ou se a página bloqueia bots. (Erro original: ${fetchError ? fetchError.message : 'Desconhecido'})`);
+      }
       
       // 2. Parse HTML text into a DOM Document
       const parser = new DOMParser();
