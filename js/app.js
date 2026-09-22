@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     savePreferences();
   }
 
-  function applyTypography() {
+  async function applyTypography() {
     const fontFamilyStr = state.fontFamily === 'OpenDyslexic' 
       ? `'Open Dyslexic', 'Comic Sans MS', sans-serif`
       : `"${state.fontFamily}", Georgia, serif`;
@@ -442,6 +442,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageContentEl.style.fontFamily = fontFamilyStr;
     pageContentEl.style.fontSize = `${state.fontSize}px`;
     readingContainerEl.className = `w-full h-full flex flex-col justify-between px-6 sm:px-12 py-4 mx-auto overflow-hidden ${state.maxWidthClass}`;
+
+    // Forçar o navegador a baixar e renderizar a fonte específica antes de continuarmos
+    if (document.fonts) {
+      try {
+        if (state.fontFamily !== 'OpenDyslexic') {
+          await document.fonts.load(`${state.fontSize}px "${state.fontFamily}"`);
+        }
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Erro ao carregar fonte:', e);
+      }
+    }
 
     updateActiveButtonStates();
     savePreferences();
@@ -561,10 +573,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (fontSizeSlider) {
-    fontSizeSlider.addEventListener('input', (e) => {
+    fontSizeSlider.addEventListener('input', async (e) => {
       state.fontSize = parseInt(e.target.value);
       if (fontSizeVal) fontSizeVal.textContent = `${state.fontSize}px`;
-      applyTypography();
+      await applyTypography();
       if (!state.isPdfMode) paginateAndRender();
     });
   }
@@ -577,19 +589,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.querySelectorAll('.font-family-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       state.fontFamily = btn.dataset.font;
-      applyTypography();
+      await applyTypography();
       if (!state.isPdfMode) paginateAndRender();
     });
   });
 
   document.querySelectorAll('.width-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       state.maxWidthClass = btn.dataset.width;
-      applyTypography();
+      await applyTypography();
       if (!state.isPdfMode) paginateAndRender();
     });
   });
@@ -1076,12 +1088,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Inicialização ---
   await loadPreferences();
-  applyTypography();
-  
-  // Aguardar o carregamento das fontes para evitar erros de cálculo na paginação (Layout Reflow)
-  if (document.fonts) {
-    await document.fonts.ready;
-  }
-
+  await applyTypography();
   await loadInitialBook();
 });
