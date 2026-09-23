@@ -72,9 +72,13 @@ class SerenePaginator {
       const lines = t.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
       const averageLineLength = lines.length ? lines.reduce((sum, line) => sum + line.length, 0) / lines.length : t.length;
       const looksLikeVerse = lines.length >= 3 && averageLineLength < 72;
+      const looksLikeHeading = lines.length === 1 && t.length < 80 && t === t.toLocaleUpperCase('pt-BR');
       const normalized = looksLikeVerse ? lines.join('\n') : lines.join(' ');
       const safeText = this.escapeHtml(normalized).replaceAll('\n', '<br>');
-      return `<p style="margin:0 0 ${paraSpacing}px 0; line-height:${lineHeight}; text-indent:${indent}px; text-align:${textAlign};">${safeText}</p>`;
+      const paragraphAlign = looksLikeHeading ? 'center' : (looksLikeVerse ? 'left' : textAlign);
+      const paragraphIndent = (looksLikeHeading || looksLikeVerse) ? 0 : indent;
+      const headingStyle = looksLikeHeading ? 'font-size:0.82em;letter-spacing:0.12em;font-weight:600;margin-bottom:1.8em;' : '';
+      return `<p style="margin:0 0 ${paraSpacing}px 0; line-height:${lineHeight}; text-indent:${paragraphIndent}px; text-align:${paragraphAlign};${headingStyle}">${safeText}</p>`;
     };
 
     // Dividir em parágrafos preservando quebras duplas
@@ -187,6 +191,7 @@ class SerenePaginator {
     const lineHeight = options.lineHeight || 1.7;
     const paraSpacing = (options.paragraphSpacing !== undefined && options.paragraphSpacing !== null) ? options.paragraphSpacing : 20;
     const textAlign = options.textAlign || 'justify';
+    const indent = (options.indent !== undefined) ? options.indent : 16;
 
     this.measurer.style.width = `${availableWidth}px`;
     this.measurer.style.boxSizing = 'border-box';
@@ -206,6 +211,7 @@ class SerenePaginator {
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style') continue;
+        if (tag === 'p' && !node.style.textIndent) node.style.textIndent = `${indent}px`;
         const raw = node.outerHTML || node.textContent || '';
         if (raw.trim()) blocks.push(raw);
       }

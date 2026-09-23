@@ -119,8 +119,8 @@
       Toque nas margens laterais ou deslize para paginar
     </div>
 
-    <article id="reading-container" class="reading-surface w-full h-full flex flex-col justify-between px-6 sm:px-10 md:px-12 py-5 max-w-2xl mx-auto overflow-hidden">
-      <div id="page-content" class="page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto">
+    <article id="reading-container" class="reading-surface w-full h-full flex flex-col justify-between px-6 sm:px-10 md:px-12 py-8 sm:py-10 max-w-xl mx-auto overflow-hidden">
+      <div id="page-content" class="page-fade leading-relaxed text-justify opacity-100 overflow-hidden mt-0 mb-auto">
         <!-- Conteúdo do livro injetado dinamicamente -->
       </div>
     </article>
@@ -185,10 +185,16 @@
         <label class="block text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
           Sintetizador de Voz (TTS)
         </label>
-        <button id="tts-play-btn" class="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          <span>Ouvir Página (TTS)</span>
-        </button>
+        <div class="grid grid-cols-[1fr_auto] gap-2">
+          <button id="tts-play-btn" class="py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-98">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span data-i18n="listen_page">Ouvir Página (TTS)</span>
+          </button>
+          <button id="tts-stop-btn" disabled title="Parar e deixar sem voz" aria-label="Parar áudio" class="py-2 px-3 rounded-lg border border-current/20 text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+            <span data-i18n="stop_audio">Parar</span>
+          </button>
+        </div>
         <div class="flex gap-1 w-full">
           <select id="tts-lang-filter" class="px-2 py-1.5 text-xs rounded border border-current/20 bg-transparent text-current outline-none" title="Filtrar vozes por idioma">
             <option value="all">Todos os idiomas</option>
@@ -228,6 +234,7 @@
         <div class="pt-2 flex items-center justify-between text-xs border-t border-amber-500/20">
           <span>Sons Ambiente (foco):</span>
           <div class="flex gap-1 flex-wrap justify-end">
+            <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 bg-amber-600 text-white border-amber-600" data-type="off">Sem som</button>
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="rain">Chuva</button>
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="ocean">Oceano</button>
             <button class="ambient-btn px-1.5 py-0.5 rounded border border-current/20 hover:bg-black/5" data-type="wind">Vento</button>
@@ -256,7 +263,7 @@
         </div>
         <div class="grid grid-cols-2 gap-2">
           <button data-preset="comfort" class="reading-preset-btn preset-active rounded-xl border border-current/15 p-2.5 text-left transition active:scale-[0.98]">
-            <strong class="block text-xs">Conforto</strong><span class="text-[10px] opacity-60">Leitura longa</span>
+            <strong class="block text-xs">Livro clássico</strong><span class="text-[10px] opacity-60">Página impressa</span>
           </button>
           <button data-preset="kindle" class="reading-preset-btn rounded-xl border border-current/15 p-2.5 text-left transition active:scale-[0.98]">
             <strong class="block text-xs">Kindle</strong><span class="text-[10px] opacity-60">Papel branco</span>

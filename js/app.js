@@ -69,10 +69,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const READING_PRESETS = {
-    comfort: { theme: 'paper', fontFamily: 'Literata', fontSize: 20, maxWidthClass: 'max-w-2xl', lineHeight: 1.65, paragraphSpacing: 18, textAlign: 'left', readingMode: 'paged', amberOpacity: 0, subDimmerOpacity: 0 },
-    kindle: { theme: 'white', fontFamily: 'Literata', fontSize: 19, maxWidthClass: 'max-w-xl', lineHeight: 1.55, paragraphSpacing: 14, textAlign: 'justify', readingMode: 'paged', amberOpacity: 0, subDimmerOpacity: 0 },
-    eink: { theme: 'eink', fontFamily: 'Atkinson Hyperlegible', fontSize: 20, maxWidthClass: 'max-w-2xl', lineHeight: 1.6, paragraphSpacing: 16, textAlign: 'left', readingMode: 'paged', amberOpacity: 0, subDimmerOpacity: 0 },
-    bedtime: { theme: 'night', fontFamily: 'Literata', fontSize: 20, maxWidthClass: 'max-w-xl', lineHeight: 1.7, paragraphSpacing: 20, textAlign: 'left', readingMode: 'scroll', amberOpacity: 0.08, subDimmerOpacity: 0.08 }
+    comfort: { theme: 'paper', fontFamily: 'Literata', fontSize: 19, maxWidthClass: 'max-w-xl', lineHeight: 1.58, paragraphSpacing: 7, textAlign: 'justify', indent: 28, readingMode: 'paged', pageTransition: 'fade', amberOpacity: 0, subDimmerOpacity: 0 },
+    kindle: { theme: 'white', fontFamily: 'Literata', fontSize: 19, maxWidthClass: 'max-w-xl', lineHeight: 1.55, paragraphSpacing: 8, textAlign: 'justify', indent: 22, readingMode: 'paged', pageTransition: 'fade', amberOpacity: 0, subDimmerOpacity: 0 },
+    eink: { theme: 'eink', fontFamily: 'Atkinson Hyperlegible', fontSize: 20, maxWidthClass: 'max-w-2xl', lineHeight: 1.6, paragraphSpacing: 14, textAlign: 'left', indent: 0, readingMode: 'paged', pageTransition: 'none', amberOpacity: 0, subDimmerOpacity: 0 },
+    bedtime: { theme: 'night', fontFamily: 'Literata', fontSize: 20, maxWidthClass: 'max-w-xl', lineHeight: 1.7, paragraphSpacing: 16, textAlign: 'left', indent: 14, readingMode: 'scroll', pageTransition: 'fade', amberOpacity: 0.08, subDimmerOpacity: 0.08 }
   };
 
   // --- Obras Embutidas em Domínio Público ---
@@ -102,11 +102,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     theme: 'paper',
     autoTheme: false,
     fontFamily: 'Literata',
-    fontSize: 20,
-    maxWidthClass: 'max-w-2xl',
-    lineHeight: 1.65,
-    paragraphSpacing: 18,
-    textAlign: 'left',
+    fontSize: 19,
+    maxWidthClass: 'max-w-xl',
+    lineHeight: 1.58,
+    paragraphSpacing: 7,
+    textAlign: 'justify',
+    indent: 28,
     subDimmerOpacity: 0,
     amberOpacity: 0,
     ttsRate: 1.0,
@@ -114,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     pdfText: '',
     pdfZoom: 1.0,
     readingMode: 'paged', // 'paged' | 'scroll'
-    pageTransition: 'none', // 'none' | 'fade' | 'slide'
+    pageTransition: 'fade', // 'none' | 'fade' | 'slide'
     navDirection: 1, // 1 = próxima, -1 = anterior
     chapterWordCount: 0,
     bookWordCount: 0,
@@ -196,6 +197,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const languageSelect = document.getElementById('language-select');
 
   const ttsPlayBtn = document.getElementById('tts-play-btn');
+  const ttsStopBtn = document.getElementById('tts-stop-btn');
   const ttsRateSlider = document.getElementById('tts-rate-slider');
   const ttsRateVal = document.getElementById('tts-rate-val');
   const ttsVoiceSelect = document.getElementById('tts-voice-select');
@@ -256,10 +258,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Carregamento de Preferências Salvas ---
   async function loadPreferences() {
-    const saved = await window.sereneStorage.getPreference('user_settings');
+    let saved = await window.sereneStorage.getPreference('user_settings');
+    if (saved && (!saved.settingsVersion || saved.settingsVersion < 3) && saved.activePreset === 'comfort') {
+      saved = { ...saved, ...READING_PRESETS.comfort, settingsVersion: 3 };
+    }
     if (saved) {
       state.activePreset = saved.activePreset || null;
-      if (saved.theme) applyTheme(saved.theme);
+      if (saved.theme) applyTheme(saved.theme, false);
       if (saved.autoTheme !== undefined) {
         state.autoTheme = saved.autoTheme;
         if (autoThemeToggle) autoThemeToggle.checked = saved.autoTheme;
@@ -282,6 +287,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (paragraphSpacingVal) paragraphSpacingVal.textContent = `${saved.paragraphSpacing}px`;
       }
       if (saved.textAlign) state.textAlign = saved.textAlign;
+      if (saved.indent !== undefined) state.indent = saved.indent;
       if (saved.subDimmerOpacity !== undefined) {
         state.subDimmerOpacity = saved.subDimmerOpacity;
         dimmerOverlay.style.opacity = saved.subDimmerOpacity;
@@ -328,7 +334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     } else {
-      applyTheme('paper');
+      applyTheme('paper', false);
     }
     updateActiveButtonStates();
     updateZoomLabel();
@@ -336,6 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function savePreferences() {
     await window.sereneStorage.savePreference('user_settings', {
+      settingsVersion: 3,
       theme: state.theme,
       autoTheme: state.autoTheme,
       fontFamily: state.fontFamily,
@@ -344,6 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       lineHeight: state.lineHeight,
       paragraphSpacing: state.paragraphSpacing,
       textAlign: state.textAlign,
+      indent: state.indent,
       subDimmerOpacity: state.subDimmerOpacity,
       amberOpacity: state.amberOpacity,
       bionicEnabled: window.sereneReadingModes ? window.sereneReadingModes.bionicEnabled : false,
@@ -443,7 +451,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       maxWidthClass: state.maxWidthClass,
       lineHeight: state.lineHeight,
       paragraphSpacing: state.paragraphSpacing,
-      textAlign: state.textAlign
+      textAlign: state.textAlign,
+      indent: state.indent
     };
 
     state.pages = [];
@@ -790,7 +799,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Aplicação Dinâmica de Temas e Tipografia (Sincronizada nas Gavetas) ---
-  function applyTheme(themeKey) {
+  function applyTheme(themeKey, persist = true) {
     const effectiveTheme = THEMES[themeKey] ? themeKey : 'paper';
     const theme = THEMES[effectiveTheme];
     state.theme = effectiveTheme;
@@ -798,6 +807,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.backgroundColor = theme.bg;
     root.style.color = theme.text;
     root.dataset.readerTheme = effectiveTheme;
+    root.style.setProperty('--reader-page-bg', theme.bg);
+    root.style.setProperty('--reader-desk-bg', theme.drawerBg);
+    root.style.setProperty('--reader-page-border', theme.border);
     const themeMeta = document.querySelector('meta[name="theme-color"]');
     if (themeMeta) themeMeta.setAttribute('content', theme.bg);
 
@@ -814,7 +826,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     updateActiveButtonStates();
-    savePreferences();
+    if (persist) savePreferences();
   }
 
   // --- Tema Automático (claro de dia, escuro à noite) ---
@@ -843,9 +855,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.fontFamily = 'Inter, system-ui, sans-serif';
 
     if (state.fontFamily === 'OpenDyslexic') {
-      pageContentEl.className = `page-fade opacity-100 my-auto font-opendyslexic`;
+      pageContentEl.className = `page-fade opacity-100 mt-0 mb-auto font-opendyslexic`;
     } else {
-      pageContentEl.className = `page-fade opacity-100 my-auto`;
+      pageContentEl.className = `page-fade opacity-100 mt-0 mb-auto`;
     }
     
     // Reaplica classes essenciais de modo de leitura para evitar flickering no F5
@@ -860,7 +872,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageContentEl.style.fontSize = `${state.fontSize}px`;
     pageContentEl.style.lineHeight = String(state.lineHeight);
     pageContentEl.style.textAlign = state.textAlign;
-    readingContainerEl.className = `reading-surface w-full h-full flex flex-col justify-between px-6 sm:px-10 md:px-12 py-5 mx-auto overflow-hidden ${state.maxWidthClass}`;
+    pageContentEl.style.setProperty('--reader-indent', `${state.indent}px`);
+    readingContainerEl.className = `reading-surface w-full h-full flex flex-col justify-between px-6 sm:px-10 md:px-12 py-8 sm:py-10 mx-auto overflow-hidden ${state.maxWidthClass}`;
 
     // Forçar o navegador a baixar e renderizar a fonte específica antes de continuarmos
     if (document.fonts) {
@@ -1464,7 +1477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         textToRead = tempDiv.textContent || '';
       }
 
-      const isStarting = !(window.sereneTTS.isPlaying && !window.sereneTTS.isPaused);
+      const isStarting = !window.sereneTTS.isPlaying && !window.sereneTTS.isPaused;
       window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
 
       if (isStarting && !state.isPdfMode) {
@@ -1477,12 +1490,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     window.sereneTTS.onStateChange = ({ isPlaying, isPaused }) => {
+      const translate = (key, fallback) => window.sereneI18n?.t(key) || fallback;
       if (isPlaying && !isPaused) {
-        ttsPlayBtn.innerHTML = `<svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span>Pausar Áudio</span>`;
+        ttsPlayBtn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg><span>${translate('pause_audio', 'Pausar Áudio')}</span>`;
+      } else if (isPaused) {
+        ttsPlayBtn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>${translate('resume_audio', 'Continuar')}</span>`;
       } else {
-        ttsPlayBtn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Ouvir Página (TTS)</span>`;
+        ttsPlayBtn.innerHTML = `<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>${translate('listen_page', 'Ouvir Página (TTS)')}</span>`;
+      }
+      if (ttsStopBtn) {
+        ttsStopBtn.disabled = !(isPlaying || isPaused);
       }
     };
+  }
+
+  if (ttsStopBtn) {
+    ttsStopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.sereneTTS.stop();
+      clearTtsHighlight();
+    });
   }
 
   if (ttsRateSlider) {
@@ -1558,7 +1585,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.stopPropagation();
       const type = btn.dataset.type;
       if (window.sereneAmbient) {
-        window.sereneAmbient.toggle(type);
+        if (type === 'off') window.sereneAmbient.stop();
+        else window.sereneAmbient.toggle(type);
       }
     });
   });
@@ -1567,7 +1595,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ambientBtns.forEach(b => {
         b.classList.remove('bg-amber-600', 'text-white', 'border-amber-600');
         b.classList.add('hover:bg-black/5');
-        if (playing && b.dataset.type === type) {
+        if ((!playing && b.dataset.type === 'off') || (playing && b.dataset.type === type)) {
           b.classList.add('bg-amber-600', 'text-white', 'border-amber-600');
           b.classList.remove('hover:bg-black/5');
         }
@@ -2666,18 +2694,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           theme: 'paper',
           autoTheme: false,
           fontFamily: 'Literata',
-          fontSize: 20,
-          maxWidthClass: 'max-w-2xl',
-          lineHeight: 1.65,
-          paragraphSpacing: 18,
-          textAlign: 'left',
+          settingsVersion: 3,
+          fontSize: 19,
+          maxWidthClass: 'max-w-xl',
+          lineHeight: 1.58,
+          paragraphSpacing: 7,
+          textAlign: 'justify',
+          indent: 28,
           subDimmerOpacity: 0,
           amberOpacity: 0,
           bionicEnabled: false,
           lineFocusEnabled: false,
           rulerEnabled: false,
           readingMode: 'paged',
-          pageTransition: 'none',
+          pageTransition: 'fade',
           ttsContinuous: false,
           activePreset: 'comfort'
         });

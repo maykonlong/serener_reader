@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v22/);
+  assert.match(worker, /serene-reader-v23/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
 
@@ -67,4 +67,27 @@ test('o botão de APK aparece no site e fica oculto no aplicativo nativo', async
   assert.match(styles, /html\.native-app \.android-download-link/);
   assert.match(app, /Capacitor\?\.isNativePlatform/);
   assert.match(app, /classList\.toggle\('native-app'/);
+});
+
+test('o áudio oferece pausa, parada e ambiente sem som', async () => {
+  const html = await read('index.html');
+  const app = await read('js/app.js');
+  const tts = await read('js/tts_engine.js');
+
+  assert.match(html, /id="tts-stop-btn"/);
+  assert.match(html, /data-type="off">Sem som/);
+  assert.match(app, /sereneTTS\.stop\(\)/);
+  assert.match(app, /sereneAmbient\.stop\(\)/);
+  assert.match(tts, /playbackId/);
+});
+
+test('a configuração inicial tem aparência editorial de livro', async () => {
+  const app = await read('js/app.js');
+  const styles = await read('css/styles.css');
+
+  assert.match(app, /comfort: \{ theme: 'paper'.*maxWidthClass: 'max-w-xl'.*textAlign: 'justify'.*indent: 28/);
+  assert.match(app, /pageTransition: 'fade'/);
+  assert.match(app, /settingsVersion < 3/);
+  assert.match(styles, /\.reading-surface[\s\S]*var\(--reader-page-bg/);
+  assert.match(styles, /text-indent: var\(--reader-indent/);
 });

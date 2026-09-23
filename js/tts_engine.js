@@ -20,6 +20,7 @@ class SereneTTSEngine {
     this.onEnd = null;       // Callback disparado quando a fala termina naturalmente
     this.onBoundary = null;  // Callback para destaque palavra-a-palavra
     this.currentCharIndex = 0;
+    this.playbackId = 0;
 
     this.onStateChange = null; // Callback UI
     this.initVoices();
@@ -149,6 +150,7 @@ class SereneTTSEngine {
     }
 
     this.stop();
+    const playbackId = this.playbackId;
 
     const cleanText = text.replace(/<[^>]*>/g, ' ');
     this.currentText = text;
@@ -162,12 +164,14 @@ class SereneTTSEngine {
     }
 
     this.utterance.onstart = () => {
+      if (playbackId !== this.playbackId) return;
       this.isPlaying = true;
       this.isPaused = false;
       this.notifyStateChange('playing');
     };
 
     this.utterance.onboundary = (e) => {
+      if (playbackId !== this.playbackId) return;
       this.currentCharIndex = e.charIndex || 0;
       if (typeof this.onBoundary === 'function') {
         this.onBoundary(e.charIndex || 0);
@@ -175,6 +179,7 @@ class SereneTTSEngine {
     };
 
     this.utterance.onend = () => {
+      if (playbackId !== this.playbackId) return;
       this.isPlaying = false;
       this.isPaused = false;
       this.notifyStateChange('ended');
@@ -184,6 +189,7 @@ class SereneTTSEngine {
     };
 
     this.utterance.onerror = (e) => {
+      if (playbackId !== this.playbackId) return;
       console.warn('Erro na síntese de voz:', e);
       this.isPlaying = false;
       this.isPaused = false;
@@ -215,7 +221,10 @@ class SereneTTSEngine {
 
   stop() {
     if (this.synth) {
+      this.playbackId += 1;
       this.synth.cancel();
+      this.utterance = null;
+      this.currentCharIndex = 0;
       this.isPlaying = false;
       this.isPaused = false;
       this.notifyStateChange('stopped');
