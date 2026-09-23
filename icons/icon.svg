@@ -1,29 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F7F4EB"/>
-      <stop offset="1" stop-color="#E8E3D3"/>
-    </linearGradient>
-    <linearGradient id="book" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F59E0B"/>
-      <stop offset="1" stop-color="#D97706"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g transform="translate(96,86)">
-    <!-- Capa do livro -->
-    <path d="M0 40 C0 18 18 0 40 0 L280 0 C302 0 320 18 320 40 L320 300 C320 322 302 340 280 340 L40 340 C18 340 0 322 0 300 Z" fill="url(#book)"/>
-    <!-- Lombada / vinco -->
-    <path d="M0 40 C0 18 18 0 40 0 L60 0 L60 340 L40 340 C18 340 0 322 0 300 Z" fill="#B45309" opacity="0.55"/>
-    <!-- Linhas de texto -->
-    <g fill="#FFFFFF" opacity="0.9">
-      <rect x="92" y="48" width="200" height="18" rx="9"/>
-      <rect x="92" y="92" width="200" height="12" rx="6"/>
-      <rect x="92" y="120" width="160" height="12" rx="6"/>
-      <rect x="92" y="158" width="200" height="12" rx="6"/>
-      <rect x="92" y="186" width="140" height="12" rx="6"/>
-      <rect x="92" y="224" width="200" height="12" rx="6"/>
-      <rect x="92" y="250" width="170" height="12" rx="6"/>
-    </g>
-  </g>
+  <rect width="512" height="512" rx="112" fill="#31483A"/>
+  <circle cx="256" cy="226" r="168" fill="#3B5545"/>
+  <path d="M92 151c55-18 111-6 164 34v218c-50-39-104-52-164-31V151Z" fill="#F7F2E7"/>
+  <path d="M420 151c-55-18-111-6-164 34v218c50-39 104-52 164-31V151Z" fill="#FFFDF7"/>
+  <path d="M256 185c-12-12-26-22-41-30v211c15 8 29 18 41 30V185Z" fill="#E5DECD"/>
+  <path d="M256 185c12-12 26-22 41-30v211c-15 8-29 18-41 30V185Z" fill="#EEE8D9"/>
+  <path d="M256 185v218" stroke="#C8BDA7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M281 177v133l25-18 25 18V160c-17 3-34 9-50 17Z" fill="#D5963B"/>
+  <path d="M121 389c51-14 96-2 135 24 39-26 84-38 135-24" fill="none" stroke="#22342A" stroke-width="12" stroke-linecap="round" opacity=".55"/>
 </svg>

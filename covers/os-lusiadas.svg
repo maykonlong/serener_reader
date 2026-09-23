@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
+  <rect width="600" height="900" fill="#173A45"/>
+  <path d="M0 0h36v900H0zM564 0h36v900h-36z" fill="#C99A4B"/>
+  <circle cx="300" cy="248" r="116" fill="none" stroke="#DDBA72" stroke-width="5"/>
+  <path d="M300 140v216M192 248h216M223 171l154 154M377 171L223 325" stroke="#DDBA72" stroke-width="4" opacity=".78"/>
+  <path d="M300 177l29 71-29 71-29-71 29-71Z" fill="#F4E9CF"/>
+  <path d="M300 200l12 48-12 48-12-48 12-48Z" fill="#B7653E"/>
+  <text x="300" y="485" text-anchor="middle" fill="#F8F0DE" font-family="Georgia, serif" font-size="52" letter-spacing="6">OS LUSÍADAS</text>
+  <path d="M150 530h300" stroke="#DDBA72" stroke-width="3"/>
+  <text x="300" y="595" text-anchor="middle" fill="#DDBA72" font-family="Georgia, serif" font-size="26" letter-spacing="3">LUÍS DE CAMÕES</text>
+  <path d="M207 735c39-25 70-26 93-4 23-22 54-21 93 4v52c-39-20-70-19-93 4-23-23-54-24-93-4v-52Z" fill="none" stroke="#F4E9CF" stroke-width="5"/>
+</svg>

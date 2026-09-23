@@ -19,7 +19,7 @@ async function copy(source, destination) {
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
-for (const entry of ['index.html', 'manifest.json', 'sw.js', 'js', 'icons']) {
+for (const entry of ['index.html', 'manifest.json', 'sw.js', 'js', 'icons', 'covers']) {
   await copy(entry, entry);
 }
 await mkdir(toOutput('css'), { recursive: true });

@@ -13,6 +13,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <!-- Dependências locais: o leitor inicia e abre livros sem conexão. -->
   <link rel="stylesheet" href="css/tailwind.css">
@@ -563,44 +565,10 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
-    <div class="p-4 border-b border-current/10 bg-black/5 dark:bg-white/5">
-      <a href="./downloads/serene-reader-android.apk"
-         download="SereneReader-Android.apk"
-         class="android-download-link mb-3 w-full px-3.5 py-3 rounded-xl flex items-center justify-between gap-3 bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition active:scale-[0.99]">
-        <span class="flex items-center gap-3 min-w-0">
-          <span class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0" aria-hidden="true">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14a2 2 0 002-2v-3M3 16v3a2 2 0 002 2"/>
-            </svg>
-          </span>
-          <span class="min-w-0 text-left">
-            <strong class="block text-sm leading-tight">Baixar para Android</strong>
-            <span class="block text-[10px] text-white/80 mt-0.5">APK direto • funciona offline</span>
-          </span>
-        </span>
-        <span class="text-xs font-bold flex-shrink-0">Baixar</span>
-      </a>
-
-      <label class="w-full py-2.5 px-3 border border-dashed border-current/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition">
-        <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-        <span class="text-xs font-medium">Adicionar Livros Locais</span>
-        <input type="file" id="file-input" accept=".epub,.pdf,.txt,.md,.docx,.cbz,.fb2" multiple class="hidden">
-      </label>
-      <button id="fs-open-btn" class="w-full mt-2 py-2.5 px-3 rounded-xl border border-current/20 hover:bg-black/10 dark:hover:bg-white/10 transition text-sm font-medium">
-        Escolher arquivos do aparelho
-      </button>
-
-      <div class="flex gap-2 mt-2">
-        <input id="url-input" type="url" placeholder="Colar link de artigo..." 
-               class="flex-1 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
-        <button id="url-import-btn" class="px-3 py-2 text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">
-          Ler Web
-        </button>
-      </div>
-
-      <div class="flex gap-2 mt-2">
+    <div class="p-3 border-b border-current/10 bg-black/[0.025] dark:bg-white/[0.025]">
+      <div class="flex gap-2">
         <input id="library-search-input" type="text" placeholder="Filtrar biblioteca..." 
-               class="flex-1 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
+               class="flex-1 min-w-0 px-3 py-2.5 text-xs rounded-xl border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
         <select id="library-sort-select" class="px-2 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current outline-none flex-shrink-0">
           <option value="recent">Recentes</option>
           <option value="title">Título</option>
@@ -609,31 +577,65 @@
         </select>
       </div>
       <div class="flex gap-2 mt-2">
-        <select id="library-tag-filter" class="flex-1 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current outline-none">
+        <select id="library-tag-filter" class="flex-1 px-3 py-2 text-xs rounded-xl border border-current/20 bg-transparent text-current outline-none">
           <option value="">Todas as etiquetas</option>
         </select>
       </div>
-
-      <div class="mt-3 pt-2 border-t border-current/10">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[10px] font-semibold uppercase tracking-wider opacity-70">Catálogo Domínio Público</span>
-        </div>
-        <div class="flex gap-2">
-          <input id="catalog-search-input" type="text" placeholder="Buscar no Project Gutenberg..."
-                 class="flex-1 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
-          <button id="catalog-search-btn" class="px-3 py-2 text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">Buscar</button>
-        </div>
-        <div id="catalog-results" class="mt-2 space-y-2 max-h-64 overflow-y-auto no-scrollbar">
-          <!-- Resultados do catálogo -->
-        </div>
-      </div>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-      <div id="library-stats" class="mb-1">
-        <!-- Painel de estatísticas de leitura renderizado dinamicamente -->
+    <div class="flex-1 overflow-y-auto p-4 no-scrollbar">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-serif text-lg font-semibold">Sua estante</h3>
+        <span id="library-book-count" class="text-[10px] uppercase tracking-wider opacity-55">0 livros</span>
       </div>
-      <div id="library-books-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+      <div id="library-books-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <!-- Livros salvos no IndexedDB renderizados aqui -->
+      </div>
+
+      <div class="mt-5 space-y-2">
+        <details class="library-tools-panel rounded-xl border border-current/15">
+          <summary class="cursor-pointer list-none px-3.5 py-3 text-xs font-semibold flex items-center justify-between">
+            <span>Adicionar livros</span><span class="details-chevron opacity-50">⌄</span>
+          </summary>
+          <div class="px-3.5 pb-3.5 border-t border-current/10 pt-3">
+            <a href="./downloads/serene-reader-android.apk"
+               download="SereneReader-Android.apk"
+               class="android-download-link mb-3 w-full px-3.5 py-3 rounded-xl flex items-center justify-between gap-3 bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition active:scale-[0.99]">
+              <span class="min-w-0 text-left"><strong class="block text-xs leading-tight">Baixar para Android</strong><span class="block text-[10px] text-white/80 mt-0.5">APK direto • funciona offline</span></span>
+              <span class="text-xs font-bold flex-shrink-0">Baixar</span>
+            </a>
+            <label class="w-full py-2.5 px-3 border border-dashed border-current/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition">
+              <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              <span class="text-xs font-medium">Adicionar arquivos</span>
+              <input type="file" id="file-input" accept=".epub,.pdf,.txt,.md,.docx,.cbz,.fb2" multiple class="hidden">
+            </label>
+            <button id="fs-open-btn" class="w-full mt-2 py-2.5 px-3 rounded-xl border border-current/20 hover:bg-black/10 dark:hover:bg-white/10 transition text-xs font-medium">Escolher arquivos do aparelho</button>
+            <div class="flex gap-2 mt-2">
+              <input id="url-input" type="url" placeholder="Colar link de artigo..." class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
+              <button id="url-import-btn" class="px-3 py-2 text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">Ler Web</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="library-tools-panel rounded-xl border border-current/15">
+          <summary class="cursor-pointer list-none px-3.5 py-3 text-xs font-semibold flex items-center justify-between">
+            <span>Buscar livros grátis</span><span class="details-chevron opacity-50">⌄</span>
+          </summary>
+          <div class="px-3.5 pb-3.5 border-t border-current/10 pt-3">
+            <div class="flex gap-2">
+              <input id="catalog-search-input" type="text" placeholder="Buscar no Project Gutenberg..." class="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border border-current/20 bg-transparent text-current placeholder-current/50 outline-none focus:border-amber-500">
+              <button id="catalog-search-btn" class="px-3 py-2 text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">Buscar</button>
+            </div>
+            <div id="catalog-results" class="mt-2 space-y-2 max-h-80 overflow-y-auto no-scrollbar"><!-- Resultados do catálogo --></div>
+          </div>
+        </details>
+
+        <details class="library-tools-panel rounded-xl border border-current/15">
+          <summary class="cursor-pointer list-none px-3.5 py-3 text-xs font-semibold flex items-center justify-between">
+            <span>Resumo de leitura</span><span class="details-chevron opacity-50">⌄</span>
+          </summary>
+          <div id="library-stats" class="px-3.5 pb-3.5 border-t border-current/10 pt-3"><!-- Estatísticas --></div>
+        </details>
       </div>
     </div>
   </aside>

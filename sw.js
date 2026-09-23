@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serene-reader-v23';
+const CACHE_NAME = 'serene-reader-v24';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,11 @@ const CORE_ASSETS = [
   './css/fonts.css',
   './css/styles.css',
   './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './covers/os-lusiadas.svg',
+  './covers/dom-casmurro.svg',
   './js/storage.js',
   './js/pagination.js',
   './js/epub_parser.js',

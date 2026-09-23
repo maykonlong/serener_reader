@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       title: 'Os Lusíadas',
       author: 'Luís de Camões',
       format: 'txt',
+      cover: './covers/os-lusiadas.svg',
       content: `CANTO I\n\nAs armas e os barões assinalados,\nQue da ocidental praia Lusitana,\nPor mares nunca de antes navegados,\nPassaram ainda além da Taprobana,\nEm perigos e guerras esforçados,\nMais do que prometia a força humana,\nE entre gente remota edificaram\nNovo Reino, que tanto sublimaram;\n\nE também as memórias gloriosas\nDaqueles Reis, que foram dilatando\nA Fé, o Império, e as terras viciosas\nDe África e de Ásia andaram devastando;\nE aqueles, que por obras valerosas\nSe vão da lei da morte libertando;\nCantando espalharei por toda parte,\nSe a tanto me ajudar o engenho e arte.\n\nCessem do sábio Grego e do Troiano\nAs navegações grandes que fizeram;\nCale-se de Alexandre e de Trajano\nA fama das vitórias que tiveram;\nQue eu canto o peito ilustre Lusitano,\nA quem Neptuno e Marte obedeceram:\nCesse tudo o que a Musa antiga canta,\nQue outro valor mais alto se alevanta.`
     },
     casmurro: {
@@ -89,6 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       title: 'Dom Casmurro',
       author: 'Machado de Assis',
       format: 'txt',
+      cover: './covers/dom-casmurro.svg',
       content: `CAPÍTULO I: DO TÍTULO\n\nUma noite destas, vindo da cidade para o Engenho Novo, encontrei no comboio da Central um rapaz aqui do bairro, ao qual eu conhecia de vista e de chapéu. Cumprimentou-me, sentou-se ao pé de mim, falou da lua e dos ministros, e acabou recitando-me versos. A viagem era curta, e os versos pode ser que não fossem inteiramente maus, porém o que aconteceu foi que eu adormeci.\n\nAcordei com o rapaz sacudindo-me o braço e dizendo que já tínhamos chegado. Não tive tempo de me queixar; saltei do vagão, e deixei-o a falar sozinho.\n\nNo dia seguinte, os vizinhos, que sabiam dos meus hábitos de recolhimento, começaram a chamar-me "Dom Casmurro". O apelido pegou. Não consultes os dicionários. Casmurro não está ali no sentido vulgar de teimoso, mas no de homem calado e metido consigo.\n\nCAPÍTULO II: DO LIVRO\n\nAgora que expliquei o título, passo a escrever o livro. Por que o escrevo? Confesso que já me fiz essa pergunta, e a resposta que me dou é que não tenho nada melhor a fazer com os meus dias. Vivo só, com um criado. A casa em que moro é própria; fiz construí-la expressamente para imitar a em que morei na infância, na antiga Rua de Matacavalos.`
     }
   };
@@ -175,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const librarySearchInput = document.getElementById('library-search-input');
   const librarySortSelect = document.getElementById('library-sort-select');
   const libraryTagFilter = document.getElementById('library-tag-filter');
+  const libraryBookCount = document.getElementById('library-book-count');
   const catalogSearchInput = document.getElementById('catalog-search-input');
   const catalogSearchBtn = document.getElementById('catalog-search-btn');
   const catalogResults = document.getElementById('catalog-results');
@@ -369,6 +372,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Carregamento do Livro Ativo ou Padrão ---
   async function loadInitialBook() {
+    // Acrescenta capas aos clássicos já salvos sem recriar livros apagados pelo usuário.
+    for (const defaultBook of Object.values(DEFAULT_BOOKS)) {
+      const storedDefault = await window.sereneStorage.getBook(defaultBook.id);
+      if (storedDefault && !storedDefault.cover) {
+        await window.sereneStorage.saveBook({ ...storedDefault, cover: defaultBook.cover });
+      }
+    }
+
     const lastBookId = await window.sereneStorage.getPreference('last_active_book_id');
     let book = null;
     if (lastBookId) {
@@ -1015,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function safeImageSource(value) {
     const source = String(value || '');
-    return /^(?:data:image\/(?:png|jpeg|jpg|gif|webp);base64,|blob:|https:\/\/)/i.test(source)
+    return /^(?:data:image\/(?:png|jpeg|jpg|gif|webp);base64,|blob:|https:\/\/|(?:\.\/)?covers\/[a-z0-9._/-]+\.(?:svg|png|jpe?g|webp)$)/i.test(source)
       ? escapeUI(source)
       : '';
   }
@@ -1976,13 +1987,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       catalogResults.innerHTML = books.slice(0, 20).map(b => {
         const author = (b.authors && b.authors[0] && b.authors[0].name) || 'Desconhecido';
+        const title = escapeUI(b.title || 'Sem título');
+        const catalogCover = safeImageSource(window.sereneCatalog.getCoverUrl(b));
         const hasEpub = !!(b.formats && b.formats['application/epub+zip']);
         const hasTxt = !!(b.formats && (b.formats['text/plain; charset=utf-8'] || b.formats['text/plain; charset=us-ascii']));
         return `
-          <div class="p-2.5 border border-current/20 rounded-lg">
-            <div class="flex items-start justify-between gap-2">
-              <div class="overflow-hidden">
-                <h4 class="font-bold text-xs truncate">${escapeUI(b.title)}</h4>
+          <div class="p-2.5 border border-current/15 rounded-xl">
+            <div class="flex items-start gap-2.5">
+              <div class="catalog-cover shrink-0 w-10 h-14 rounded-md overflow-hidden shadow-sm">
+                ${catalogCover ? `<img src="${catalogCover}" alt="Capa de ${title}" loading="lazy" decoding="async" class="w-full h-full object-cover">` : `<span>${title.charAt(0)}</span>`}
+              </div>
+              <div class="overflow-hidden min-w-0 flex-1">
+                <h4 class="font-bold text-xs line-clamp-2">${title}</h4>
                 <p class="text-[11px] opacity-70 truncate">${escapeUI(author)}</p>
                 <p class="text-[10px] opacity-50">⬇ ${b.download_count || 0} downloads</p>
               </div>
@@ -2014,7 +2030,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 author: parsed.author || dl.author,
                 format: 'epub',
                 content: parsed.rawText,
-                cover: parsed.cover,
+                cover: parsed.cover || dl.cover,
                 contentType: parsed.contentType || 'html',
                 toc: parsed.toc,
                 chapters: parsed.chapters
@@ -2025,6 +2041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 author: dl.author,
                 format: 'txt',
                 content: dl.text,
+                cover: dl.cover,
                 contentType: 'text'
               };
             }
@@ -2198,9 +2215,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (books.length === 0) {
+      if (libraryBookCount) libraryBookCount.textContent = '0 livros';
       libraryContainer.innerHTML = '<p class="text-xs opacity-50 italic text-center py-6">Nenhum livro encontrado.</p>';
       return;
     }
+
+    if (libraryBookCount) libraryBookCount.textContent = `${books.length} ${books.length === 1 ? 'livro' : 'livros'}`;
 
     libraryContainer.innerHTML = books.map(b => {
       const safeId = String(b.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -2210,34 +2230,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       const cover = safeImageSource(b.cover);
       const progress = Math.max(0, Math.min(100, Math.round((b.pagePercentage || 0) * 100)));
       const stars = '★'.repeat(b.rating || 0) + '<span class="opacity-30">' + '★'.repeat(5 - (b.rating || 0)) + '</span>';
-      const statusLabel = b.status === 'finished' ? '<span class="text-emerald-600 font-medium">Concluído</span>' : (b.status === 'reading' ? '<span class="text-amber-700 font-medium">Lendo</span>' : '<span class="opacity-55">Não iniciado</span>');
+      const statusLabel = b.status === 'finished' ? '<span class="book-status-badge bg-emerald-700/90">Concluído</span>' : (b.status === 'reading' ? '<span class="book-status-badge bg-amber-700/90">Lendo</span>' : '');
       const tagsHtml = (Array.isArray(b.tags) && b.tags.length > 0)
         ? `<div class="flex flex-wrap gap-1 mt-1.5">${b.tags.slice(0, 3).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300">${escapeUI(t)}</span>`).join('')}</div>`
         : '';
       return `
-      <div class="book-card p-3.5 border border-current/15 rounded-2xl flex flex-col justify-between">
-        <div class="flex items-start gap-3 cursor-pointer" onclick="window.selectBookFromLibrary('${safeId}')">
-          ${cover ? `<img src="${cover}" alt="Capa de ${title}" class="w-16 h-24 object-cover rounded-lg shadow-md shrink-0">` : `<div class="book-cover-fallback w-16 h-24 text-white font-semibold text-[10px] tracking-widest flex flex-col items-center justify-center gap-2 rounded-lg shadow-md uppercase shrink-0"><span class="text-2xl font-serif">${title.charAt(0)}</span><span>${format}</span></div>`}
-          <div class="overflow-hidden min-w-0 flex-1 pt-0.5">
-            <h3 class="font-semibold text-sm leading-snug line-clamp-2">${title}</h3>
-            <p class="text-xs opacity-65 truncate mt-1">${author}</p>
-            <span class="inline-block mt-2 text-[9px] px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 uppercase font-mono">${format}</span>
-            ${b.rating ? `<div class="text-amber-500 text-[10px] mt-0.5">${stars}</div>` : ''}
-            <div class="text-[10px] mt-1">${statusLabel}</div>
+      <article class="book-card border border-current/15 rounded-2xl overflow-hidden flex flex-col">
+        <button type="button" class="text-left cursor-pointer group" onclick="window.selectBookFromLibrary('${safeId}')" aria-label="Ler ${title}">
+          <div class="book-cover-shell relative aspect-[2/3] overflow-hidden">
+            ${cover ? `<img src="${cover}" alt="Capa de ${title}" loading="lazy" decoding="async" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.025]">` : `<div class="book-cover-fallback w-full h-full text-white flex flex-col items-center justify-center gap-3 p-4 text-center"><span class="text-4xl font-serif">${title.charAt(0)}</span><span class="font-serif text-xs leading-snug line-clamp-3">${title}</span><span class="text-[8px] tracking-[0.2em] uppercase opacity-70">${format}</span></div>`}
+            ${statusLabel}
+            <div class="absolute inset-x-0 bottom-0 h-1 bg-black/20"><div class="h-full bg-amber-500" style="width:${progress}%"></div></div>
+          </div>
+          <div class="p-2.5 pb-2 min-w-0">
+            <h3 class="font-semibold text-xs leading-snug line-clamp-2 min-h-[2rem]">${title}</h3>
+            <p class="text-[10px] opacity-60 truncate mt-1">${author}</p>
+            <div class="flex items-center justify-between mt-2 text-[9px] opacity-60"><span>${progress}% lido</span><span>Pág. ${(b.currentPage || 0) + 1}</span></div>
+            ${b.rating ? `<div class="text-amber-500 text-[9px] mt-1">${stars}</div>` : ''}
             ${tagsHtml}
           </div>
+        </button>
+        <div class="mt-auto px-2 pb-2 flex items-center justify-between text-[10px] border-t border-current/10 pt-1.5">
+          <button onclick="event.stopPropagation(); window.openBookDetailsFromLibrary('${safeId}')" class="px-1.5 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 opacity-70">Detalhes</button>
+          <button onclick="event.stopPropagation(); window.deleteBookFromLibrary('${safeId}')" class="px-1.5 py-1 rounded-lg text-red-600 hover:bg-red-500/10" aria-label="Excluir ${title}">Excluir</button>
         </div>
-        <div class="mt-3">
-          <div class="flex items-center justify-between text-[10px] opacity-65 mb-1.5"><span>${progress}% lido</span><span>Pág. ${(b.currentPage || 0) + 1}</span></div>
-          <div class="h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden"><div class="h-full bg-amber-600 rounded-full" style="width:${progress}%"></div></div>
-        </div>
-        <div class="mt-2 flex items-center justify-end text-[11px]">
-          <div class="flex items-center gap-2">
-            <button onclick="event.stopPropagation(); window.openBookDetailsFromLibrary('${safeId}')" class="px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 opacity-75">Detalhes</button>
-            <button onclick="event.stopPropagation(); window.deleteBookFromLibrary('${safeId}')" class="px-2 py-1.5 rounded-lg text-red-600 hover:bg-red-500/10">Excluir</button>
-          </div>
-        </div>
-      </div>
+      </article>
     `;}).join('');
   }
 

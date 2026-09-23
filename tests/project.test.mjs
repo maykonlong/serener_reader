@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v23/);
+  assert.match(worker, /serene-reader-v24/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
 
@@ -90,4 +90,30 @@ test('a configuração inicial tem aparência editorial de livro', async () => {
   assert.match(app, /settingsVersion < 3/);
   assert.match(styles, /\.reading-surface[\s\S]*var\(--reader-page-bg/);
   assert.match(styles, /text-indent: var\(--reader-indent/);
+});
+
+test('a biblioteca prioriza capas e mantém ferramentas recolhidas', async () => {
+  const html = await read('index.html');
+  const app = await read('js/app.js');
+  const catalog = await read('js/catalog.js');
+
+  assert.match(html, /id="library-books-grid" class="grid grid-cols-2 sm:grid-cols-3/);
+  assert.match(html, /<details class="library-tools-panel/);
+  assert.match(html, /id="library-book-count"/);
+  assert.match(app, /catalog-cover/);
+  assert.match(app, /cover: parsed\.cover \|\| dl\.cover/);
+  assert.match(catalog, /getCoverUrl\(book\)/);
+  assert.match(catalog, /_downloadCover\(url\)/);
+});
+
+test('o PWA e o Android usam a nova identidade de livro aberto', async () => {
+  const manifest = await read('manifest.json');
+  const icon = await read('icons/icon.svg');
+  const androidIcon = await read('android/app/src/main/res/drawable/serene_launcher_foreground.xml');
+
+  assert.match(manifest, /icon-maskable-512\.png/);
+  assert.match(icon, /#31483A/);
+  assert.match(icon, /#D5963B/);
+  assert.match(androidIcon, /#FFFDF7/);
+  assert.match(androidIcon, /#D5963B/);
 });
