@@ -1,138 +1,95 @@
-# Serene Reader 📖✨
+# Serene Reader
 
-Um leitor de ebooks (EPUB, PDF, FB2, CBZ), TXT, Markdown e artigos da web 100% focado em **ergonomia ocular, retenção de foco e redução da fadiga visual**, construído nativamente com JavaScript (Vanilla) e Tailwind CSS.
+Leitor de ebooks offline-first para EPUB, PDF, FB2, CBZ, DOCX, TXT, Markdown e artigos. O projeto prioriza conforto visual, acessibilidade, foco e privacidade. Pode ser instalado como PWA ou compilado como aplicativo Android com Capacitor.
 
-Totalmente **offline-first, client-side e privativo**. Nenhuma linha de texto dos seus livros é enviada para servidores. Funciona perfeitamente como aplicativo nativo no celular ou desktop via PWA.
+Nenhum conteúdo de livro é enviado para servidores. Biblioteca, progresso, preferências, marcadores, notas e destaques ficam no IndexedDB do dispositivo.
 
----
+## Experiência de leitura
 
-## 🌟 Principais Funcionalidades
+- Modos prontos **Conforto**, **Kindle**, **E-ink** e **Antes de dormir**, que ajustam cor, fonte, margem, espaçamento e navegação em um toque.
+- Paletas Kindle Branco, Papel Creme, E-ink, Sépia, Noite e OLED, além de tema automático, dimmer e filtro âmbar.
+- Leitura paginada ou por rolagem, modo imersivo, busca, índice de capítulos, progresso e estimativa de tempo.
+- Fontes Literata, Lora, Merriweather, Atkinson Hyperlegible, Lexend, Vollkorn e OpenDyslexic empacotadas localmente.
+- Ajuste de tamanho, entrelinha, parágrafos, largura, alinhamento e transição de página.
+- TTS com vozes do sistema, leitura contínua, sleep timer e destaque palavra a palavra.
+- Régua, foco de linha, leitura biônica, RSVP, alto contraste e sons ambientes.
 
-### 👁️ Ergonomia e Leitura
-- **Modos Circadianos:** Paletas de cor curadas (Papel Natural, Sépia, Noite Conforto, Luz Vermelha Anti-insônia).
-- **Dimmer Universal & Filtro Âmbar:** Filtre a luz azul e reduza o brilho do fundo da tela sem depender do sistema operacional.
-- **Paginação Exata (Sem scroll vertical):** Um motor de paginação DOM matemático que garante que linhas nunca sejam cortadas ao meio. Pagine deslizando a tela ou com toques nas margens (Mobile-first).
-- **Tipografia Ajustável:** Controle fino de tamanho da fonte, espaçamento entre linhas, espaço entre parágrafos e alinhamento (justificado/esquerda).
-- **Leitura Imersiva:** Esconda as barras superiores e inferiores com um toque (ou tecla `I`) para leitura sem distrações.
-- **Estimativa de Tempo Restante:** Veja quantos minutos faltam para terminar o capítulo com base no seu ritmo real de leitura.
-- **Imagens Integradas:** Ilustrações e figuras internas aparecem nos livros (EPUB, DOCX, CBZ, Markdown, FB2), convertidas para base64 localmente — sem depender de internet.
+## Biblioteca e formatos
 
-### ⚡ Retenção de Foco e Acessibilidade
-- **Sintetizador de Voz (TTS):** Escute seus livros com as vozes nativas do sistema. Possui Sleep Timer de até 30min para desligar automaticamente.
-- **Bionic Reading (Leitura Biônica):** Destaque dinâmico das sílabas iniciais de cada palavra para guiar os olhos e aumentar a velocidade de leitura para mentes neurodivergentes (TDAH).
-- **Régua de Leitura & Foco de Linha:** Auxiliares visuais para quem perde a linha de leitura com facilidade.
-- **RSVP (Leitura Rápida):** Modo de apresentação de uma palavra por vez para picos intensos de foco e absorção ultrarrápida.
-- **Fonte OpenDyslexic:** Suporte nativo à tipografia construída para leitores com Dislexia.
+- Importação em lote de EPUB, PDF, TXT, Markdown, DOCX, CBZ e FB2.
+- Capas e imagens internas preservadas localmente.
+- OCR offline em português e inglês para PDFs escaneados.
+- Busca e ordenação da biblioteca, etiquetas, avaliação, estado de leitura e estatísticas.
+- Marcadores, anotações, destaques em quatro cores, exportação Markdown e backup JSON.
+- Catálogo Project Gutenberg e importação de artigos por URL quando houver internet.
 
-### 📚 Biblioteca e Anotações Privativas
-- **IndexedDB Local:** O aplicativo arquiva e indexa sua biblioteca 100% no cache local do seu dispositivo. 
-- **Auto-save de Progresso:** Lembra exatamente em que página você estava, recalculando proporcionalmente até se você mudar o tamanho da fonte.
-- **Marcadores de Página (Bookmarks):** Salve trechos favoritos do livro.
-- **Anotações Livres:** Um caderno de notas acoplado por livro, salvo automaticamente.
-- **Importador de URL (Web Reader):** Cole o link de um artigo ou notícia da web, e o aplicativo extrairá o texto limpo, livre de anúncios, trazendo para dentro da sua biblioteca.
-- **Exportação/Backup:** Gere um arquivo `.json` portátil contendo todos os seus livros, progresso e notas para levar para outro dispositivo.
-- **Estatísticas de Leitura:** Acompanhe tempo total, páginas lidas, sequência de dias consecutivos, seu ritmo (palavras por minuto) e **meta diária de leitura** com barra de progresso.
-- **Busca Avançada:** Encontre termos no livro com navegação entre ocorrências (Enter / Shift+Enter) e destaque visual (marca-texto).
-- **Biblioteca com Filtro e Ordenação:** Pesquise por título/autor e ordene por recentes, título, autor ou progresso.
-- **Importação em Lote:** Arraste e solte múltiplos arquivos de uma vez (EPUB, PDF, TXT, MD, DOCX, CBZ, FB2).
-- **Tema Automático:** Alterne automaticamente entre claro (dia) e escuro (noite) conforme o horário.
-- **Mais Fontes e Vozes:** Novas tipografias (Atkinson Hyperlegible, Lexend, Vollkorn) e filtro de idioma no sintetizador de voz (TTS).
-- **Atalhos de Teclado:** Painel de ajuda com a tecla `?` para descobrir todos os atalhos.
-- **Leitura Contínua por Voz:** O TTS vira as páginas (e capítulos) automaticamente, com controles na tela de bloqueio via Media Session API.
-- **Destaque palavra-a-palavra:** O TTS marca a palavra que está a ser lida (modo karaokê).
-- **Sons Ambiente:** Ruído de chuva, oceano, vento, fogo, marrom, rosa e branco gerados em tempo real (Web Audio API) para foco.
-- **Transições de Página:** Escolha entre Nenhuma, Esmaecer ou Deslizar para a virada de página.
-- **Exportação de Notas:** Exporte suas notas e marcadores do livro em Markdown.
-- **Coleções & Etiquetas:** Organize livros com etiquetas (tags), filtre a biblioteca e veja detalhes com avaliação por estrelas e estado (não lido / a ler / concluído).
-- **File System Access:** Abra e salve arquivos diretamente do sistema (onde o navegador suportar).
-- **Catálogo de Domínio Público:** Busque e baixe milhares de livros gratuitos do Project Gutenberg (EPUB/TXT) diretamente para a biblioteca.
-- **OCR (tesseract.js):** Reconheça texto de PDFs escaneados e imagens, permitindo ouvir páginas que não têm texto digital.
-- **Destaques Coloridos:** Selecione texto no livro e marque com 4 cores (amarelo, verde, azul, rosa), com lista e remoção.
-- **Backup com Lembrete:** Lembra automaticamente de exportar seus dados a cada 7 dias.
-- **Idioma da Interface:** Português, Inglês e Espanhol (i18n).
-- **Alto Contraste:** Modo de leitura com contraste reforçado.
-- **Onboarding:** Dica de boas-vindas na primeira execução.
+## Offline e privacidade
 
----
+O build não usa CDNs. Tailwind, fontes, JSZip, PDF.js, DOMPurify, Marked, Mammoth, Readability, Tesseract e os idiomas de OCR são copiados para o pacote. O service worker recebe um manifesto com todos os assets locais.
 
-## 🛠️ Tecnologias Utilizadas
+A leitura de arquivos locais, biblioteca, progresso, anotações, busca, OCR e TTS do sistema funcionam sem conexão. Apenas recursos cuja origem é externa precisam de rede: importar artigo por URL, catálogo Project Gutenberg, tradução e Wikipedia. Vozes TTS adicionais podem precisar ser baixadas nas configurações do Android uma única vez.
 
-- **HTML5, CSS3 & JavaScript (Vanilla)**
-- **Tailwind CSS** (via CDN para estilos rápidos)
-- **IndexedDB / localForage** (Armazenamento permanente assíncrono no navegador)
-- **Web Speech API** (Sintetizador de voz TTS sem dependências)
-- **DOMPurify & Readability.js** (Extração e sanitização segura de artigos web)
-- **JSZip & pdf.js** (Descompactação e leitura de formatos de arquivo no cliente)
-- **Service Workers (PWA)** (Cache offline e instalabilidade mobile)
+## Executar no navegador
 
----
+Requer Node.js 22.13 ou mais recente.
 
-## 🚀 Como Rodar e Instalar (PWA)
-
-Por ser uma aplicação baseada inteiramente no cliente e sem necessidade de backend ou banco de dados, você pode hospedá-lo em qualquer lugar!
-
-### Executando Localmente
-1. Faça o clone do repositório:
 ```bash
 git clone https://github.com/maykonlong/serener_reader.git
+cd serener_reader
+npm install
+npm run dev
 ```
-2. Abra um servidor local simples na raiz do projeto (como o Live Server do VSCode, ou Python):
+
+Acesse `http://localhost:8000`. O comando gera `www/` e serve exatamente o pacote de produção. Para gerar sem iniciar o servidor, use `npm run build`.
+
+## Android
+
+O diretório `android/` já contém o projeto Capacitor. Para sincronizar o conteúdo e abrir no Android Studio:
+
 ```bash
-python -m http.server 8000
+npm run android:sync
+npm run android:open
 ```
-3. Acesse `http://localhost:8000`.
 
-### Instalando no Celular (Mobile-First)
-1. Acesse o link hospedado da aplicação pelo **Google Chrome** (Android) ou **Safari** (iOS).
-2. Abra o menu do navegador e toque em **"Adicionar à Tela Inicial"** (Add to Home Screen).
-3. O Serene Reader agora está instalado como um aplicativo offline nativo na sua gaveta de aplicativos!
+Para compilar localmente, instale Android Studio, JDK 21 e Android SDK 36. O APK de teste pode ser criado no Android Studio ou, dentro de `android/`, com `gradlew assembleDebug` no Windows e `./gradlew assembleDebug` no macOS/Linux.
 
----
+O app usa o seletor de arquivos do sistema, não pede acesso amplo ao armazenamento, bloqueia HTTP sem criptografia e não inclui a biblioteca do usuário no backup do Android.
 
-## 📁 Estrutura do Projeto
+## PWA
 
-- `/index.html`: Arquivo principal e estrutura de layout.
-- `/sw.js` e `/manifest.json`: Configurações de PWA (Service Worker e Manifest).
-- `/css/styles.css`: Modificações finas acima do Tailwind (animações customizadas e fontes).
-- `/js/`:
-  - `app.js`: Orquestrador principal da aplicação.
-  - `pagination.js`: Motor matemático que lida com fatiamento de páginas.
-  - `storage.js`: Manipulador de IndexedDB e salvamento de estado.
-  - `stats.js`: Rastreia tempo, páginas, palavras e sequência de leitura.
-  - `tts_engine.js`: Wrapper em torno da Web Speech API.
-  - `epub_parser.js`, `pdf_reader.js`, `format_parsers.js`: Decodificadores client-side de arquivos.
-  - `url_reader.js`: Coletor e parseador de artigos web.
+Hospede o conteúdo de `www/` em HTTPS. No Chrome ou Safari, use “Adicionar à tela inicial”. Depois do primeiro carregamento completo, o leitor e seus recursos locais ficam disponíveis offline.
 
----
+## Qualidade
 
-## 🧪 Testes
+```bash
+npm run check
+```
 
-Testes de lógica pura (i18n e estatísticas) podem ser executados abrindo `tests/test.html` no navegador.
+Esse comando:
 
----
+1. valida a sintaxe dos módulos JavaScript;
+2. executa os testes automatizados;
+3. compila o Tailwind;
+4. gera o pacote offline;
+5. rejeita dependências de CDN no HTML de produção.
 
-## 🗺️ Roadmap & Funcionalidades Futuras
+Os testes manuais legados continuam disponíveis em `tests/test.html`. `npm audit` deve permanecer sem vulnerabilidades conhecidas.
 
-Funcionalidades que **dependem de backend ou chave de API externa** (não implementadas por manter o app 100% offline/client-side):
+## Estrutura
 
-| Funcionalidade | O que precisa | Notas |
-|---|---|---|
-| 🤖 IA — resumo e Q&A sobre o livro | Chave de API de LLM (OpenAI, Anthropic Claude ou Google Gemini) | Opcional; mantê-la desligada por padrão para preservar privacidade. |
-| 🔄 Sincronização em nuvem | Backend (Supabase, Firebase ou PocketBase) | Necessário para sincronizar progresso/notas entre dispositivos. |
-| 🔐 Criptografia E2E | Combinada à sincronização em nuvem | Usaria a Web Crypto API (`SubtleCrypto`). |
+- `index.html`: interface e painéis do leitor.
+- `css/`: design, fontes locais e entrada do Tailwind.
+- `js/`: armazenamento, parsers, paginação, TTS, anotações, estatísticas e aplicação.
+- `scripts/build.mjs`: gera `www/` e copia dependências/fontes locais.
+- `sw.js` e `manifest.json`: instalação e cache da PWA.
+- `android/`: projeto Android Capacitor.
+- `www/`: artefato gerado, ignorado pelo Git.
 
-Limitações técnicas conhecidas (sem dependência externa, mas com alto custo de refatoração):
+## Roadmap
 
-| Item | Motivo |
-|---|---|
-| 🖥️ Spread / 2 páginas lado a lado | Requer refatoração profunda do motor de paginação (que mede pixels no DOM). |
-| ⚙️ Web Workers | O motor de paginação depende do DOM, que não existe em workers. |
-| 📦 Vendoring das bibliotecas CDN | Hoje Tailwind, JSZip, PDF.js, DOMPurify, marked, mammoth, Readability e tesseract.js são carregados via CDN. Para **offline total**, baixar e versionar cada biblioteca localmente. |
+- Sincronização opcional entre dispositivos com criptografia ponta a ponta.
+- Layout de duas páginas lado a lado para tablets e monitores largos.
+- Processamento de parsers pesados em Web Workers.
+- Resumos e perguntas sobre o livro como integração opcional, sempre desligada por padrão.
 
----
-
-## 🤝 Contribuições
-
-Este projeto foi construído para evoluir. Se você deseja adicionar suporte a novos formatos, novas paletas de cor, ou aprimorar os algoritmos de acessibilidade (como o TTS e o Bionic Reading), sinta-se à vontade para abrir uma *Issue* ou enviar um *Pull Request*. 
-
-**Licença MIT.**
+Licença MIT.

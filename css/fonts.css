@@ -1,0 +1,24 @@
+/* Fontes locais: todas são empacotadas no build e funcionam sem internet. */
+@import url('../vendor/fonts/inter/400.css');
+@import url('../vendor/fonts/inter/500.css');
+@import url('../vendor/fonts/inter/600.css');
+@import url('../vendor/fonts/literata/400.css');
+@import url('../vendor/fonts/literata/500.css');
+@import url('../vendor/fonts/literata/600.css');
+@import url('../vendor/fonts/literata/400-italic.css');
+@import url('../vendor/fonts/lora/400.css');
+@import url('../vendor/fonts/lora/500.css');
+@import url('../vendor/fonts/lora/400-italic.css');
+@import url('../vendor/fonts/merriweather/400.css');
+@import url('../vendor/fonts/merriweather/700.css');
+@import url('../vendor/fonts/merriweather/400-italic.css');
+@import url('../vendor/fonts/atkinson/400.css');
+@import url('../vendor/fonts/atkinson/700.css');
+@import url('../vendor/fonts/atkinson/400-italic.css');
+@import url('../vendor/fonts/lexend/400.css');
+@import url('../vendor/fonts/lexend/500.css');
+@import url('../vendor/fonts/vollkorn/400.css');
+@import url('../vendor/fonts/vollkorn/600.css');
+@import url('../vendor/fonts/vollkorn/400-italic.css');
+@import url('../vendor/fonts/opendyslexic/400.css');
+@import url('../vendor/fonts/opendyslexic/700.css');

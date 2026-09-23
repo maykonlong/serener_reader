@@ -1,30 +1,34 @@
 <!DOCTYPE html>
-<html lang="pt-PT" class="h-full">
+<html lang="pt-BR" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>SereneReader - Leitor Ergonómico Sem Fadiga Visual</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <title>Serene Reader — sua leitura, sem distrações</title>
 
   <!-- PWA & SEO Meta Tags -->
   <meta name="description" content="SereneReader - Leitor de e-books ergonômico, PWA offline, com suporte a EPUB, PDF, TXT, sintetizador de voz (TTS) e filtros circadianos.">
   <meta name="theme-color" content="#F7F4EB">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="manifest.json">
 
-  <!-- External CDNs: Tailwind CSS, JSZip (EPUB) e PDF.js (PDF) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  
-  <!-- CDNs - Novos Parsers -->
-  <script src="https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-
-  <!-- Estilos Personalizados & Design System -->
+  <!-- Dependências locais: o leitor inicia e abre livros sem conexão. -->
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/styles.css">
+  <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/readability.js"></script>
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/mammoth.browser.min.js"></script>
+  <script src="vendor/purify.min.js"></script>
+  <script type="module">
+    import * as pdfjsLib from './vendor/pdf.min.mjs';
+    window.pdfjsLib = pdfjsLib;
+  </script>
 </head>
-<body id="reader-root" class="h-full w-full relative flex flex-col transition-colors duration-200" style="background-color: #F7F4EB; color: #242424;">
+<body id="reader-root" data-reader-theme="paper" class="app-shell h-full w-full relative flex flex-col transition-colors duration-200" style="background-color: #F7F4EB; color: #242424;">
 
   <!-- Camada 1: Filtro Circadiano Âmbar (Anti-luz azul) -->
   <div id="amber-overlay" 
@@ -37,14 +41,14 @@
        style="background-color: #000000; opacity: 0; z-index: 45;"></div>
 
   <!-- Topo Bar -->
-  <header id="top-bar" class="z-20 flex items-center justify-between px-4 py-2.5 shrink-0 border-b border-black/5 dark:border-white/5 opacity-90 transition-opacity">
+  <header id="top-bar" class="reader-chrome z-20 flex items-center justify-between px-3 sm:px-5 py-2.5 shrink-0 border-b border-black/5 dark:border-white/5 transition-opacity">
     <div class="flex items-center space-x-2">
       <!-- Botão Abrir Biblioteca -->
-      <button id="open-library-btn" title="Minha Biblioteca" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition">
-        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button id="open-library-btn" title="Minha Biblioteca" class="flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5 transition">
+        <svg class="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
-        <span class="truncate max-w-[100px] sm:max-w-[140px] md:max-w-xs" id="header-book-name">Os Lusíadas</span>
+        <span class="truncate max-w-[132px] sm:max-w-[240px] md:max-w-sm" id="header-book-name">Os Lusíadas</span>
       </button>
     </div>
 
@@ -96,14 +100,14 @@
 
   <!-- Container Principal de Leitura -->
   <main class="relative flex-1 w-full flex flex-col justify-center items-center overflow-hidden">
-    <div id="tap-prev-zone" class="absolute left-0 top-0 bottom-0 w-1/3 sm:w-1/4 z-10 cursor-w-resize" title="Página Anterior"></div>
-    <div id="tap-next-zone" class="absolute right-0 top-0 bottom-0 w-1/3 sm:w-1/4 z-10 cursor-e-resize" title="Página Seguinte"></div>
+    <div id="tap-prev-zone" class="absolute left-0 top-0 bottom-0 w-[16%] z-10 cursor-w-resize" title="Página Anterior"></div>
+    <div id="tap-next-zone" class="absolute right-0 top-0 bottom-0 w-[16%] z-10 cursor-e-resize" title="Página Seguinte"></div>
 
     <div id="touch-hint" class="pointer-events-none absolute bottom-4 text-[11px] opacity-40 uppercase tracking-widest transition-opacity duration-300">
       Toque nas margens laterais ou deslize para paginar
     </div>
 
-    <article id="reading-container" class="w-full h-full flex flex-col justify-between px-4 sm:px-6 md:px-12 py-4 max-w-xl mx-auto overflow-hidden">
+    <article id="reading-container" class="reading-surface w-full h-full flex flex-col justify-between px-6 sm:px-10 md:px-12 py-5 max-w-2xl mx-auto overflow-hidden">
       <div id="page-content" class="page-fade leading-relaxed text-justify opacity-100 overflow-hidden my-auto">
         <!-- Conteúdo do livro injetado dinamicamente -->
       </div>
@@ -122,7 +126,7 @@
   </main>
 
   <!-- Rodapé com Progresso e Botões -->
-  <footer id="footer-bar" class="z-20 px-4 sm:px-6 py-1.5 sm:py-2.5 shrink-0 flex items-center justify-between text-xs opacity-80 select-none border-t border-black/5 dark:border-white/5">
+  <footer id="footer-bar" class="reader-chrome z-20 px-3 sm:px-6 py-2 shrink-0 flex items-center justify-between text-xs select-none border-t border-black/5 dark:border-white/5">
     <button id="prev-btn" class="p-2 sm:p-1 sm:px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 justify-center">
       <svg class="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
       <span class="hidden sm:inline">Anterior</span>
@@ -149,23 +153,23 @@
   <div id="settings-backdrop" class="fixed inset-0 bg-black/30 z-50 hidden transition-opacity duration-200 opacity-0"></div>
 
   <!-- Gaveta 1: Ajustes Ergonómicos e TTS -->
-  <aside id="settings-drawer" class="fixed right-0 top-0 bottom-0 w-full sm:w-96 shadow-2xl transform translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-l border-current/10" style="z-index: 60;">
+  <aside id="settings-drawer" class="settings-panel fixed right-0 top-0 bottom-0 w-full sm:w-[28rem] shadow-2xl transform translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-l border-current/10" style="z-index: 60;">
     <div class="p-4 px-5 border-b border-current/10 flex items-center justify-between drawer-header">
       <h2 class="text-sm font-semibold tracking-tight flex items-center gap-2">
         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
         </svg>
-        Ajustes Ergonómicos
+        Ajustes de leitura
       </h2>
       <button id="close-settings-btn" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
+    <div class="settings-content flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
 
       <!-- Player Sintetizador de Voz (TTS) -->
-      <section class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
+      <section class="tts-panel p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
         <label class="block text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
           Sintetizador de Voz (TTS)
         </label>
@@ -229,30 +233,65 @@
         </div>
       </section>
 
+      <!-- Modos rápidos de leitura -->
+      <section class="reading-presets rounded-2xl border border-current/10 p-3.5">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">Modo de leitura</label>
+            <p class="text-[11px] opacity-60 mt-0.5">Um toque ajusta cor, fonte e espaçamento.</p>
+          </div>
+          <span class="text-[9px] uppercase tracking-[0.16em] px-2 py-1 rounded-full bg-amber-500/15 text-amber-700">Kindle-like</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button data-preset="comfort" class="reading-preset-btn preset-active rounded-xl border border-current/15 p-2.5 text-left transition active:scale-[0.98]">
+            <strong class="block text-xs">Conforto</strong><span class="text-[10px] opacity-60">Leitura longa</span>
+          </button>
+          <button data-preset="kindle" class="reading-preset-btn rounded-xl border border-current/15 p-2.5 text-left transition active:scale-[0.98]">
+            <strong class="block text-xs">Kindle</strong><span class="text-[10px] opacity-60">Papel branco</span>
+          </button>
+          <button data-preset="eink" class="reading-preset-btn rounded-xl border border-current/15 p-2.5 text-left transition active:scale-[0.98]">
+            <strong class="block text-xs">E-ink</strong><span class="text-[10px] opacity-60">Cinza fosco</span>
+          </button>
+          <button data-preset="bedtime" class="reading-preset-btn rounded-xl border border-current/15 p-2.5 text-left transition active:scale-[0.98]">
+            <strong class="block text-xs">Antes de dormir</strong><span class="text-[10px] opacity-60">Quente e escuro</span>
+          </button>
+        </div>
+      </section>
+
       <!-- 1. Paletas de Cor -->
-      <section>
+      <section class="pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70 mb-2.5">
-          1. Paleta de Cor Ocular
+          Cores da página
         </label>
         <div class="grid grid-cols-2 gap-2">
+          <button data-theme="white" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #FFFFFF; color: #171717; border-color: #dedede;">
+            <span class="text-xs font-bold">Kindle Branco</span>
+            <span class="text-[10px] opacity-75">Contraste limpo</span>
+          </button>
+
           <button data-theme="paper" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #F7F4EB; color: #242424; border-color: #dfdaca;">
-            <span class="text-xs font-bold">Papel Natural</span>
-            <span class="text-[10px] opacity-75">Marfim diurno suave</span>
+            <span class="text-xs font-bold">Papel Creme</span>
+            <span class="text-[10px] opacity-75">Conforto prolongado</span>
+          </button>
+
+          <button data-theme="eink" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #E4E6E1; color: #1E211E; border-color: #C8CCC6;">
+            <span class="text-xs font-bold">E-ink</span>
+            <span class="text-[10px] opacity-75">Tela fosca suave</span>
           </button>
 
           <button data-theme="sepia" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #EFE6D5; color: #2D2B28; border-color: #dacdb5;">
-            <span class="text-xs font-bold">Papiro / Sépia</span>
-            <span class="text-[10px] opacity-75">Tons quentes de repouso</span>
+            <span class="text-xs font-bold">Sépia</span>
+            <span class="text-[10px] opacity-75">Tons quentes</span>
           </button>
 
           <button data-theme="night" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #161618; color: #C2C0B8; border-color: #2b2b2e;">
-            <span class="text-xs font-bold">Noite Conforto</span>
-            <span class="text-[10px] opacity-75">Carvão sem halo puro</span>
+            <span class="text-xs font-bold">Noite</span>
+            <span class="text-[10px] opacity-75">Carvão suave</span>
           </button>
 
-          <button data-theme="red" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #110505; color: #B86B6B; border-color: #311313;">
-            <span class="text-xs font-bold">Luz Vermelha</span>
-            <span class="text-[10px] opacity-75">Anti-luz azul (sono)</span>
+          <button data-theme="oled" class="theme-select-btn p-3 rounded-xl border flex flex-col items-start gap-1 transition text-left active:scale-[0.98]" style="background-color: #080A09; color: #D3D8D3; border-color: #252925;">
+            <span class="text-xs font-bold">OLED</span>
+            <span class="text-[10px] opacity-75">Preto profundo</span>
           </button>
         </div>
 
@@ -315,9 +354,9 @@
         <div class="space-y-1.5">
           <div class="flex justify-between text-xs font-medium">
             <span>Tamanho da Fonte</span>
-            <span id="font-size-val" class="font-mono opacity-80">18px</span>
+            <span id="font-size-val" class="font-mono opacity-80">20px</span>
           </div>
-          <input id="font-size-slider" type="range" min="14" max="32" value="18" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+          <input id="font-size-slider" type="range" min="14" max="36" value="20" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
         </div>
 
         <div class="space-y-1.5">
@@ -326,7 +365,7 @@
           </div>
           <div class="grid grid-cols-3 gap-2">
             <button data-width="max-w-md" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Estreita</button>
-            <button data-width="max-w-xl" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Ideal</button>
+            <button data-width="max-w-2xl" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Ideal</button>
             <button data-width="max-w-3xl" class="width-btn py-1.5 text-xs border border-current/20 rounded-lg transition">Larga</button>
           </div>
         </div>
@@ -334,17 +373,17 @@
         <div class="space-y-1.5">
           <div class="flex justify-between text-xs font-medium">
             <span>Espaçamento entre Linhas</span>
-            <span id="line-height-val" class="font-mono opacity-80">1.7x</span>
+            <span id="line-height-val" class="font-mono opacity-80">1.65x</span>
           </div>
-          <input id="line-height-slider" type="range" min="1.1" max="2.6" step="0.1" value="1.7" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+          <input id="line-height-slider" type="range" min="1.1" max="2.6" step="0.05" value="1.65" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
         </div>
 
         <div class="space-y-1.5">
           <div class="flex justify-between text-xs font-medium">
             <span>Espaço entre Parágrafos</span>
-            <span id="paragraph-spacing-val" class="font-mono opacity-80">20px</span>
+            <span id="paragraph-spacing-val" class="font-mono opacity-80">18px</span>
           </div>
-          <input id="paragraph-spacing-slider" type="range" min="0" max="60" step="2" value="20" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
+          <input id="paragraph-spacing-slider" type="range" min="0" max="60" step="2" value="18" class="w-full h-1.5 bg-current/20 rounded-lg cursor-pointer">
         </div>
 
         <div class="space-y-1.5">
@@ -352,8 +391,8 @@
             <span>Alinhamento do Texto</span>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <button data-align="justify" class="text-align-btn py-1.5 text-xs border border-current/20 rounded-lg transition font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-600">Justificado</button>
-            <button data-align="left" class="text-align-btn py-1.5 text-xs border border-current/20 rounded-lg transition opacity-70">Esquerda</button>
+            <button data-align="justify" class="text-align-btn py-1.5 text-xs border border-current/20 rounded-lg transition opacity-70">Justificado</button>
+            <button data-align="left" class="text-align-btn py-1.5 text-xs border border-current/20 rounded-lg transition font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-600">Esquerda</button>
           </div>
         </div>
 
@@ -495,7 +534,7 @@
 
   <!-- Gaveta 2: Biblioteca de Livros (IndexedDB Bookshelf) -->
   <div id="library-backdrop" class="fixed inset-0 bg-black/40 z-50 hidden transition-opacity duration-200 opacity-0"></div>
-  <aside id="library-drawer" class="fixed left-0 top-0 bottom-0 w-full sm:w-96 shadow-2xl transform -translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-r border-current/10" style="z-index: 60;">
+  <aside id="library-drawer" class="library-panel fixed left-0 top-0 bottom-0 w-full sm:w-[34rem] lg:w-[40rem] shadow-2xl transform -translate-x-full transition-transform duration-200 flex flex-col overflow-hidden border-r border-current/10" style="z-index: 60;">
     <div class="p-4 px-5 border-b border-current/10 flex items-center justify-between drawer-header">
       <h2 class="text-sm font-semibold tracking-tight flex items-center gap-2">
         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
@@ -511,8 +550,8 @@
         <span class="text-xs font-medium">Adicionar Livros Locais</span>
         <input type="file" id="file-input" accept=".epub,.pdf,.txt,.md,.docx,.cbz,.fb2" multiple class="hidden">
       </label>
-      <button id="fs-open-btn" class="w-full mt-2 py-2 px-3 rounded-xl border border-current/20 hover:bg-black/10 dark:hover:bg-white/10 transition text-xs font-medium">
-        Abrir do Sistema (File System Access)
+      <button id="fs-open-btn" class="w-full mt-2 py-2.5 px-3 rounded-xl border border-current/20 hover:bg-black/10 dark:hover:bg-white/10 transition text-sm font-medium">
+        Escolher arquivos do aparelho
       </button>
 
       <div class="flex gap-2 mt-2">
@@ -557,7 +596,7 @@
       <div id="library-stats" class="mb-1">
         <!-- Painel de estatísticas de leitura renderizado dinamicamente -->
       </div>
-      <div id="library-books-grid" class="space-y-3">
+      <div id="library-books-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <!-- Livros salvos no IndexedDB renderizados aqui -->
       </div>
     </div>
@@ -702,6 +741,13 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
+        const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(location.hostname);
+        if (isLocalDevelopment) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            registrations.forEach(registration => registration.unregister());
+          });
+          return;
+        }
         navigator.serviceWorker.register('sw.js').catch(err => {
           console.log('ServiceWorker não registrado:', err);
         });

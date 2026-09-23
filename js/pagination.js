@@ -49,8 +49,10 @@ class SerenePaginator {
     // Calcular altura disponível real descontando padding top/bottom e pequenas margens de segurança
     const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
     const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
     const availableHeight = (rect.height || containerEl.clientHeight || 500) - paddingTop - paddingBottom - 16;
-    const availableWidth = rect.width || containerEl.clientWidth || 400;
+    const availableWidth = (rect.width || containerEl.clientWidth || 400) - paddingLeft - paddingRight;
 
     const lineHeight = options.lineHeight || 1.7;
     const paraSpacing = (options.paragraphSpacing !== undefined && options.paragraphSpacing !== null) ? options.paragraphSpacing : 20;
@@ -58,6 +60,7 @@ class SerenePaginator {
     const indent = (options.indent !== undefined) ? options.indent : 16;
 
     this.measurer.style.width = `${availableWidth}px`;
+    this.measurer.style.boxSizing = 'border-box';
     this.measurer.style.fontFamily = options.fontFamily ? `"${options.fontFamily}", Georgia, serif` : computedStyle.fontFamily;
     this.measurer.style.fontSize = options.fontSize ? `${options.fontSize}px` : computedStyle.fontSize;
     this.measurer.style.lineHeight = String(lineHeight);
@@ -65,7 +68,14 @@ class SerenePaginator {
     this.measurer.style.hyphens = 'auto';
 
     // Template de parágrafo com estilos inline para garantir medição e exibição idênticas
-    const para = (t) => `<p style="margin:0 0 ${paraSpacing}px 0; line-height:${lineHeight}; text-indent:${indent}px; text-align:${textAlign};">${this.escapeHtml(t)}</p>`;
+    const para = (t) => {
+      const lines = t.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const averageLineLength = lines.length ? lines.reduce((sum, line) => sum + line.length, 0) / lines.length : t.length;
+      const looksLikeVerse = lines.length >= 3 && averageLineLength < 72;
+      const normalized = looksLikeVerse ? lines.join('\n') : lines.join(' ');
+      const safeText = this.escapeHtml(normalized).replaceAll('\n', '<br>');
+      return `<p style="margin:0 0 ${paraSpacing}px 0; line-height:${lineHeight}; text-indent:${indent}px; text-align:${textAlign};">${safeText}</p>`;
+    };
 
     // Dividir em parágrafos preservando quebras duplas
     const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim() !== '');
@@ -169,14 +179,17 @@ class SerenePaginator {
     const computedStyle = window.getComputedStyle(containerEl);
     const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
     const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+    const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
     const availableHeight = (rect.height || containerEl.clientHeight || 500) - paddingTop - paddingBottom - 16;
-    const availableWidth = rect.width || containerEl.clientWidth || 400;
+    const availableWidth = (rect.width || containerEl.clientWidth || 400) - paddingLeft - paddingRight;
 
     const lineHeight = options.lineHeight || 1.7;
     const paraSpacing = (options.paragraphSpacing !== undefined && options.paragraphSpacing !== null) ? options.paragraphSpacing : 20;
     const textAlign = options.textAlign || 'justify';
 
     this.measurer.style.width = `${availableWidth}px`;
+    this.measurer.style.boxSizing = 'border-box';
     this.measurer.style.fontFamily = options.fontFamily ? `"${options.fontFamily}", Georgia, serif` : computedStyle.fontFamily;
     this.measurer.style.fontSize = options.fontSize ? `${options.fontSize}px` : computedStyle.fontSize;
     this.measurer.style.lineHeight = String(lineHeight);
@@ -226,8 +239,16 @@ class SerenePaginator {
         if (this.measurer.scrollHeight <= availableHeight) {
           currentAcc.push(wrap);
         } else {
-          // Forçar encaixe: empurra o bloco para a própria página
-          pages.push(wrap);
+          // Parágrafos muito longos precisam ser repartidos; caso contrário o final
+          // ficaria escondido fora da página. Elementos visuais permanecem inteiros.
+          const fragment = new DOMParser().parseFromString(blocks[i], 'text/html');
+          const hasVisualContent = fragment.body.querySelector('img, svg, canvas, table, video, audio, pre');
+          const plainText = fragment.body.textContent.trim();
+          if (!hasVisualContent && plainText.length > 180) {
+            pages.push(...this.paginate(plainText, containerEl, options));
+          } else {
+            pages.push(wrap);
+          }
         }
       }
     }

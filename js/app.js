@@ -7,13 +7,29 @@
 document.addEventListener('DOMContentLoaded', async () => {
   // --- Temas Ergonómicos com estilos sincronizados para Gavetas (Drawers) ---
   const THEMES = {
+    white: {
+      bg: '#FFFFFF',
+      text: '#171717',
+      border: '#dedede',
+      drawerBg: '#F7F7F5',
+      drawerText: '#20201E',
+      drawerBorder: '#deded9'
+    },
     paper: {
       bg: '#F7F4EB',
-      text: '#242424',
+      text: '#292820',
       border: '#dfdaca',
       drawerBg: '#EFECE1',
-      drawerText: '#242424',
+      drawerText: '#292820',
       drawerBorder: '#dcd7c7'
+    },
+    eink: {
+      bg: '#E4E6E1',
+      text: '#1E211E',
+      border: '#C8CCC6',
+      drawerBg: '#D8DBD5',
+      drawerText: '#1E211E',
+      drawerBorder: '#BCC1BA'
     },
     sepia: {
       bg: '#EFE6D5',
@@ -24,12 +40,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       drawerBorder: '#d2c3a7'
     },
     night: {
-      bg: '#161618',
-      text: '#C2C0B8',
-      border: '#2b2b2e',
-      drawerBg: '#202023',
-      drawerText: '#C2C0B8',
-      drawerBorder: '#323236'
+      bg: '#171A18',
+      text: '#D0D2CB',
+      border: '#2B302C',
+      drawerBg: '#202421',
+      drawerText: '#D0D2CB',
+      drawerBorder: '#353B36'
+    },
+    oled: {
+      bg: '#080A09',
+      text: '#D3D8D3',
+      border: '#252925',
+      drawerBg: '#101311',
+      drawerText: '#D3D8D3',
+      drawerBorder: '#282D29'
     },
     red: {
       bg: '#110505',
@@ -39,6 +63,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       drawerText: '#B86B6B',
       drawerBorder: '#3a1717'
     }
+  };
+
+  const READING_PRESETS = {
+    comfort: { theme: 'paper', fontFamily: 'Literata', fontSize: 20, maxWidthClass: 'max-w-2xl', lineHeight: 1.65, paragraphSpacing: 18, textAlign: 'left', readingMode: 'paged', amberOpacity: 0, subDimmerOpacity: 0 },
+    kindle: { theme: 'white', fontFamily: 'Literata', fontSize: 19, maxWidthClass: 'max-w-xl', lineHeight: 1.55, paragraphSpacing: 14, textAlign: 'justify', readingMode: 'paged', amberOpacity: 0, subDimmerOpacity: 0 },
+    eink: { theme: 'eink', fontFamily: 'Atkinson Hyperlegible', fontSize: 20, maxWidthClass: 'max-w-2xl', lineHeight: 1.6, paragraphSpacing: 16, textAlign: 'left', readingMode: 'paged', amberOpacity: 0, subDimmerOpacity: 0 },
+    bedtime: { theme: 'night', fontFamily: 'Literata', fontSize: 20, maxWidthClass: 'max-w-xl', lineHeight: 1.7, paragraphSpacing: 20, textAlign: 'left', readingMode: 'scroll', amberOpacity: 0.08, subDimmerOpacity: 0.08 }
   };
 
   // --- Obras Embutidas em Domínio Público ---
@@ -68,11 +99,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     theme: 'paper',
     autoTheme: false,
     fontFamily: 'Literata',
-    fontSize: 18,
-    maxWidthClass: 'max-w-xl',
-    lineHeight: 1.7,
-    paragraphSpacing: 20,
-    textAlign: 'justify',
+    fontSize: 20,
+    maxWidthClass: 'max-w-2xl',
+    lineHeight: 1.65,
+    paragraphSpacing: 18,
+    textAlign: 'left',
     subDimmerOpacity: 0,
     amberOpacity: 0,
     ttsRate: 1.0,
@@ -83,7 +114,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageTransition: 'none', // 'none' | 'fade' | 'slide'
     navDirection: 1, // 1 = próxima, -1 = anterior
     chapterWordCount: 0,
-    bookWordCount: 0
+    bookWordCount: 0,
+    activePreset: 'comfort'
   };
 
   // --- Elementos da DOM ---
@@ -223,6 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadPreferences() {
     const saved = await window.sereneStorage.getPreference('user_settings');
     if (saved) {
+      state.activePreset = saved.activePreset || null;
       if (saved.theme) applyTheme(saved.theme);
       if (saved.autoTheme !== undefined) {
         state.autoTheme = saved.autoTheme;
@@ -318,7 +351,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       pageTransition: state.pageTransition,
       ttsContinuous: window.sereneTTS ? window.sereneTTS.autoContinue : false,
       highContrast: document.body.classList.contains('high-contrast'),
-      language: window.sereneI18n ? window.sereneI18n.lang : 'pt'
+      language: window.sereneI18n ? window.sereneI18n.lang : 'pt',
+      activePreset: state.activePreset
     });
   }
 
@@ -443,6 +477,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderCurrentPage();
   }
 
+  function repairRenderedPageOverflow() {
+    if (state.readingMode !== 'paged' || state.isPdfMode) return false;
+    if (window.sereneReadingModes && window.sereneReadingModes.bionicEnabled) return false;
+    if (pageContentEl.scrollHeight <= pageContentEl.clientHeight + 2) return false;
+
+    const movedBlocks = [];
+    while (pageContentEl.scrollHeight > pageContentEl.clientHeight + 2 && pageContentEl.children.length > 1) {
+      const lastBlock = pageContentEl.lastElementChild;
+      movedBlocks.unshift(lastBlock.outerHTML);
+      lastBlock.remove();
+    }
+
+    if (!movedBlocks.length) return false;
+    state.pages[state.currentPage] = pageContentEl.innerHTML;
+    state.pages.splice(state.currentPage + 1, 0, movedBlocks.join(''));
+    return true;
+  }
+
   async function renderCurrentPage() {
     const transition = state.pageTransition || 'none';
     if (transition === 'none') {
@@ -493,6 +545,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         pageContentEl.innerHTML = content;
+        repairRenderedPageOverflow();
         
         if (window.sereneReadingModes && window.sereneReadingModes.lineFocusEnabled) {
           window.sereneReadingModes.toggleLineFocus(false); // reset
@@ -735,11 +788,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Aplicação Dinâmica de Temas e Tipografia (Sincronizada nas Gavetas) ---
   function applyTheme(themeKey) {
-    const theme = THEMES[themeKey] || THEMES.paper;
-    state.theme = themeKey;
+    const effectiveTheme = THEMES[themeKey] ? themeKey : 'paper';
+    const theme = THEMES[effectiveTheme];
+    state.theme = effectiveTheme;
 
     root.style.backgroundColor = theme.bg;
     root.style.color = theme.text;
+    root.dataset.readerTheme = effectiveTheme;
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.setAttribute('content', theme.bg);
 
     [settingsDrawer, libraryDrawer, tocDrawer].forEach(drawer => {
       if (drawer) {
@@ -779,8 +836,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? `'Open Dyslexic', 'Comic Sans MS', sans-serif`
       : `"${state.fontFamily}", Georgia, serif`;
     
-    // Aplica a fonte globalmente para que os menus também fiquem agradáveis
-    root.style.fontFamily = fontFamilyStr;
+    // A interface usa sans-serif; só o texto do livro recebe a fonte de leitura.
+    root.style.fontFamily = 'Inter, system-ui, sans-serif';
 
     if (state.fontFamily === 'OpenDyslexic') {
       pageContentEl.className = `page-fade opacity-100 my-auto font-opendyslexic`;
@@ -800,7 +857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageContentEl.style.fontSize = `${state.fontSize}px`;
     pageContentEl.style.lineHeight = String(state.lineHeight);
     pageContentEl.style.textAlign = state.textAlign;
-    readingContainerEl.className = `w-full h-full flex flex-col justify-between px-6 sm:px-12 py-4 mx-auto overflow-hidden ${state.maxWidthClass}`;
+    readingContainerEl.className = `reading-surface w-full h-full flex flex-col justify-between px-6 sm:px-10 md:px-12 py-5 mx-auto overflow-hidden ${state.maxWidthClass}`;
 
     // Forçar o navegador a baixar e renderizar a fonte específica antes de continuarmos
     if (document.fonts) {
@@ -829,6 +886,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         btn.style.outline = 'none';
       }
+    });
+
+    document.querySelectorAll('.reading-preset-btn').forEach(btn => {
+      btn.classList.toggle('preset-active', btn.dataset.preset === state.activePreset);
     });
 
     // Destacar botão da família de fonte selecionada
@@ -896,7 +957,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Gavetas (Drawer) UI ---
+  let activeDrawer = null;
+  let activeDrawerBackdrop = null;
+  let activeDrawerIsLeft = false;
+
   function openDrawer(drawer, backdrop) {
+    activeDrawer = drawer;
+    activeDrawerBackdrop = backdrop;
+    activeDrawerIsLeft = drawer === libraryDrawer || drawer === tocDrawer;
+    if (!history.state || !history.state.sereneDrawer) {
+      history.pushState({ sereneDrawer: true }, '', location.href);
+    }
     backdrop.classList.remove('hidden');
     setTimeout(() => {
       backdrop.classList.remove('opacity-0');
@@ -905,12 +976,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 10);
   }
 
-  function closeDrawer(drawer, backdrop, isLeft = false) {
+  function closeDrawer(drawer, backdrop, isLeft = false, fromHistory = false) {
     backdrop.classList.add('opacity-0');
     drawer.classList.remove('translate-x-0');
     drawer.classList.add(isLeft ? '-translate-x-full' : 'translate-x-full');
     setTimeout(() => backdrop.classList.add('hidden'), 200);
+    if (activeDrawer === drawer) {
+      activeDrawer = null;
+      activeDrawerBackdrop = null;
+    }
+    if (!fromHistory && history.state && history.state.sereneDrawer) history.back();
   }
+
+  function escapeUI(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function safeImageSource(value) {
+    const source = String(value || '');
+    return /^(?:data:image\/(?:png|jpeg|jpg|gif|webp);base64,|blob:|https:\/\/)/i.test(source)
+      ? escapeUI(source)
+      : '';
+  }
+
+  window.addEventListener('popstate', () => {
+    if (activeDrawer && activeDrawerBackdrop) {
+      closeDrawer(activeDrawer, activeDrawerBackdrop, activeDrawerIsLeft, true);
+    }
+  });
 
   openSettingsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -966,6 +1064,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Zoom Dinâmico e Barra Flutuante ---
   function setFontSize(newSize) {
+    state.activePreset = null;
     state.fontSize = newSize;
     if (fontSizeSlider) fontSizeSlider.value = state.fontSize;
     if (fontSizeVal) fontSizeVal.textContent = `${state.fontSize}px`;
@@ -1083,6 +1182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (fontSizeSlider) {
     fontSizeSlider.addEventListener('input', (e) => {
+      state.activePreset = null;
       state.fontSize = parseInt(e.target.value);
       if (fontSizeVal) fontSizeVal.textContent = `${state.fontSize}px`;
       updateZoomLabel();
@@ -1096,8 +1196,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (lineHeightSlider) {
     lineHeightSlider.addEventListener('input', (e) => {
+      state.activePreset = null;
       state.lineHeight = parseFloat(e.target.value);
-      if (lineHeightVal) lineHeightVal.textContent = `${state.lineHeight.toFixed(1)}x`;
+      if (lineHeightVal) lineHeightVal.textContent = `${state.lineHeight.toFixed(2).replace(/0$/, '')}x`;
       applyTypography();
     });
     lineHeightSlider.addEventListener('change', () => {
@@ -1108,6 +1209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (paragraphSpacingSlider) {
     paragraphSpacingSlider.addEventListener('input', (e) => {
+      state.activePreset = null;
       state.paragraphSpacing = parseInt(e.target.value);
       if (paragraphSpacingVal) paragraphSpacingVal.textContent = `${state.paragraphSpacing}px`;
       applyTypography();
@@ -1121,6 +1223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.text-align-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      state.activePreset = null;
       state.textAlign = btn.dataset.align;
       updateActiveButtonStates();
       await applyTypography();
@@ -1131,13 +1234,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.theme-select-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      state.activePreset = null;
       applyTheme(btn.dataset.theme);
+    });
+  });
+
+  document.querySelectorAll('.reading-preset-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const preset = READING_PRESETS[btn.dataset.preset];
+      if (!preset) return;
+
+      Object.assign(state, preset, { activePreset: btn.dataset.preset, autoTheme: false });
+      if (autoThemeToggle) autoThemeToggle.checked = false;
+      if (fontSizeSlider) fontSizeSlider.value = state.fontSize;
+      if (fontSizeVal) fontSizeVal.textContent = `${state.fontSize}px`;
+      if (lineHeightSlider) lineHeightSlider.value = state.lineHeight;
+      if (lineHeightVal) lineHeightVal.textContent = `${state.lineHeight}x`;
+      if (paragraphSpacingSlider) paragraphSpacingSlider.value = state.paragraphSpacing;
+      if (paragraphSpacingVal) paragraphSpacingVal.textContent = `${state.paragraphSpacing}px`;
+      dimmerOverlay.style.opacity = state.subDimmerOpacity;
+      amberOverlay.style.opacity = state.amberOpacity;
+      if (subDimmerSlider) subDimmerSlider.value = Math.round(state.subDimmerOpacity * 100);
+      if (subDimmerVal) subDimmerVal.textContent = `${Math.round(state.subDimmerOpacity * 100)}%`;
+      if (amberSlider) amberSlider.value = Math.round(state.amberOpacity * 100);
+      if (amberVal) amberVal.textContent = `${Math.round(state.amberOpacity * 100)}%`;
+
+      applyTheme(state.theme);
+      await applyTypography();
+      paginateAndRender();
+      showToast(`Modo ${btn.querySelector('strong')?.textContent || 'de leitura'} aplicado.`, 'success');
     });
   });
 
   document.querySelectorAll('.font-family-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      state.activePreset = null;
       state.fontFamily = btn.dataset.font;
       await applyTypography();
       if (!state.isPdfMode) paginateAndRender();
@@ -1147,6 +1280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.width-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      state.activePreset = null;
       state.maxWidthClass = btn.dataset.width;
       await applyTypography();
       if (!state.isPdfMode) paginateAndRender();
@@ -1156,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.reading-mode-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      state.activePreset = null;
       state.readingMode = btn.dataset.mode;
       updateActiveButtonStates();
       savePreferences();
@@ -1442,7 +1577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return new Promise((resolve, reject) => {
       if (window.Tesseract) { resolve(window.Tesseract); return; }
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      script.src = './vendor/tesseract/tesseract.min.js';
       script.onload = () => resolve(window.Tesseract);
       script.onerror = () => reject(new Error('Falha ao carregar a biblioteca OCR.'));
       document.head.appendChild(script);
@@ -1472,7 +1607,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Criar worker OCR (uma vez por sessão seria melhor, mas aqui criamos sob demanda)
-        const worker = await Tesseract.createWorker('por+eng');
+        const worker = await Tesseract.createWorker('por+eng', Tesseract.OEM.LSTM_ONLY, {
+          workerPath: './vendor/tesseract/worker.min.js',
+          corePath: './vendor/tesseract/core',
+          langPath: './vendor/tesseract/lang',
+          gzip: true
+        });
         const ret = await worker.recognize(canvas);
         await worker.terminate();
 
@@ -1714,7 +1854,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     bookmarksListEl.innerHTML = bookmarks.map(bm => `
       <div class="p-2 border border-current/20 rounded-lg flex items-center justify-between text-xs">
         <div class="cursor-pointer truncate max-w-[200px]" onclick="window.jumpToBookmark(${bm.pageIndex}, ${bm.chapterIndex || 0})">
-          <span class="font-bold">Pág. ${bm.pageIndex + 1}:</span> ${bm.snippet}
+          <span class="font-bold">Pág. ${Number(bm.pageIndex) + 1}:</span> ${escapeUI(bm.snippet)}
         </div>
         <button onclick="window.removeBookmark(${bm.id})" class="text-red-500 hover:text-red-700 p-1 font-bold">×</button>
       </div>
@@ -1811,8 +1951,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="p-2.5 border border-current/20 rounded-lg">
             <div class="flex items-start justify-between gap-2">
               <div class="overflow-hidden">
-                <h4 class="font-bold text-xs truncate">${b.title}</h4>
-                <p class="text-[11px] opacity-70 truncate">${author}</p>
+                <h4 class="font-bold text-xs truncate">${escapeUI(b.title)}</h4>
+                <p class="text-[11px] opacity-70 truncate">${escapeUI(author)}</p>
                 <p class="text-[10px] opacity-50">⬇ ${b.download_count || 0} downloads</p>
               </div>
               <button data-catalog-id="${b.id}" class="catalog-download-btn px-2.5 py-1.5 text-[10px] rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition active:scale-95 flex-shrink-0">
@@ -1995,7 +2135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       books.forEach(b => (Array.isArray(b.tags) ? b.tags : []).forEach(t => allTags.add(t)));
       const currentValue = libraryTagFilter.value;
       libraryTagFilter.innerHTML = '<option value="">Todas as etiquetas</option>' +
-        Array.from(allTags).sort().map(t => `<option value="${t}">${t}</option>`).join('');
+        Array.from(allTags).sort().map(t => `<option value="${escapeUI(t)}">${escapeUI(t)}</option>`).join('');
       libraryTagFilter.value = currentValue;
     }
 
@@ -2032,29 +2172,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     libraryContainer.innerHTML = books.map(b => {
+      const safeId = String(b.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      const title = escapeUI(b.title || 'Sem título');
+      const author = escapeUI(b.author || 'Autor desconhecido');
+      const format = escapeUI((b.format || 'livro').toUpperCase());
+      const cover = safeImageSource(b.cover);
+      const progress = Math.max(0, Math.min(100, Math.round((b.pagePercentage || 0) * 100)));
       const stars = '★'.repeat(b.rating || 0) + '<span class="opacity-30">' + '★'.repeat(5 - (b.rating || 0)) + '</span>';
-      const statusLabel = b.status === 'finished' ? '<span class="text-emerald-500">Concluído</span>' : (b.status === 'reading' ? '<span class="text-amber-500">A ler</span>' : '');
+      const statusLabel = b.status === 'finished' ? '<span class="text-emerald-600 font-medium">Concluído</span>' : (b.status === 'reading' ? '<span class="text-amber-700 font-medium">Lendo</span>' : '<span class="opacity-55">Não iniciado</span>');
       const tagsHtml = (Array.isArray(b.tags) && b.tags.length > 0)
-        ? `<div class="flex flex-wrap gap-1 mt-1">${b.tags.slice(0, 3).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">${t}</span>`).join('')}</div>`
+        ? `<div class="flex flex-wrap gap-1 mt-1.5">${b.tags.slice(0, 3).map(t => `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300">${escapeUI(t)}</span>`).join('')}</div>`
         : '';
       return `
-      <div class="book-card p-3 border border-current/20 rounded-xl flex flex-col justify-between bg-black/5 dark:bg-white/5">
-        <div class="flex items-start gap-3 cursor-pointer" onclick="window.selectBookFromLibrary('${b.id}')">
-          ${b.cover ? `<img src="${b.cover}" class="w-12 h-16 object-cover rounded shadow-sm shrink-0">` : `<div class="w-12 h-16 bg-amber-700/20 text-amber-700 font-bold text-xs flex items-center justify-center rounded uppercase shrink-0">${b.format}</div>`}
-          <div class="overflow-hidden">
-            <h3 class="font-bold text-xs truncate">${b.title}</h3>
-            <p class="text-[11px] opacity-70 truncate">${b.author}</p>
-            <span class="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 uppercase font-mono">${b.format}</span>
+      <div class="book-card p-3.5 border border-current/15 rounded-2xl flex flex-col justify-between">
+        <div class="flex items-start gap-3 cursor-pointer" onclick="window.selectBookFromLibrary('${safeId}')">
+          ${cover ? `<img src="${cover}" alt="Capa de ${title}" class="w-16 h-24 object-cover rounded-lg shadow-md shrink-0">` : `<div class="book-cover-fallback w-16 h-24 text-white font-semibold text-[10px] tracking-widest flex flex-col items-center justify-center gap-2 rounded-lg shadow-md uppercase shrink-0"><span class="text-2xl font-serif">${title.charAt(0)}</span><span>${format}</span></div>`}
+          <div class="overflow-hidden min-w-0 flex-1 pt-0.5">
+            <h3 class="font-semibold text-sm leading-snug line-clamp-2">${title}</h3>
+            <p class="text-xs opacity-65 truncate mt-1">${author}</p>
+            <span class="inline-block mt-2 text-[9px] px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 uppercase font-mono">${format}</span>
             ${b.rating ? `<div class="text-amber-500 text-[10px] mt-0.5">${stars}</div>` : ''}
-            ${statusLabel}
+            <div class="text-[10px] mt-1">${statusLabel}</div>
             ${tagsHtml}
           </div>
         </div>
-        <div class="mt-3 flex items-center justify-between text-[11px] opacity-60">
-          <span>Pág. ${(b.currentPage || 0) + 1}</span>
+        <div class="mt-3">
+          <div class="flex items-center justify-between text-[10px] opacity-65 mb-1.5"><span>${progress}% lido</span><span>Pág. ${(b.currentPage || 0) + 1}</span></div>
+          <div class="h-1 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden"><div class="h-full bg-amber-600 rounded-full" style="width:${progress}%"></div></div>
+        </div>
+        <div class="mt-2 flex items-center justify-end text-[11px]">
           <div class="flex items-center gap-2">
-            <button onclick="event.stopPropagation(); window.openBookDetailsFromLibrary('${b.id}')" class="hover:underline opacity-80">Detalhes</button>
-            <button onclick="event.stopPropagation(); window.deleteBookFromLibrary('${b.id}')" class="text-red-500 hover:underline">Excluir</button>
+            <button onclick="event.stopPropagation(); window.openBookDetailsFromLibrary('${safeId}')" class="px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 opacity-75">Detalhes</button>
+            <button onclick="event.stopPropagation(); window.deleteBookFromLibrary('${safeId}')" class="px-2 py-1.5 rounded-lg text-red-600 hover:bg-red-500/10">Excluir</button>
           </div>
         </div>
       </div>
@@ -2106,8 +2255,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     bookDetailsTitle.textContent = book.title || 'Sem Título';
     bookDetailsAuthor.textContent = book.author || 'Autor Desconhecido';
     bookDetailsFormat.textContent = book.format || 'txt';
-    if (book.cover) {
-      bookDetailsCover.innerHTML = `<img src="${book.cover}" class="w-16 h-20 object-cover rounded">`;
+    const detailsCoverSource = safeImageSource(book.cover);
+    if (detailsCoverSource) {
+      bookDetailsCover.innerHTML = `<img src="${detailsCoverSource}" alt="" class="w-16 h-20 object-cover rounded">`;
     } else {
       bookDetailsCover.innerHTML = (book.format || '—').toUpperCase();
     }
@@ -2192,7 +2342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.currentBook && state.currentBook.chapters && state.currentBook.chapters.length > 0) {
       tocListEl.innerHTML = state.currentBook.chapters.map((ch, idx) => `
         <button class="w-full text-left p-2.5 rounded-lg border border-current/10 hover:bg-amber-500/10 text-xs font-medium truncate ${idx === state.currentChapter ? 'bg-amber-500/20 font-bold' : ''}" onclick="window.selectChapter(${idx})">
-          ${ch.title || `Capítulo ${idx + 1}`}
+          ${escapeUI(ch.title || `Capítulo ${idx + 1}`)}
         </button>
       `).join('');
     } else {
@@ -2379,7 +2529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="p-2 border border-current/20 rounded-lg flex items-center justify-between text-xs">
         <div class="flex items-center gap-2 truncate">
           <span class="inline-block w-3 h-3 rounded-full shrink-0" style="background:${colorDot[h.color] || '#fbbf24'}"></span>
-          <span class="truncate">${h.text}</span>
+          <span class="truncate">${escapeUI(h.text)}</span>
         </div>
         <button onclick="window.removeHighlightFromBook(${h.id})" class="text-red-500 hover:text-red-700 p-1 font-bold shrink-0">×</button>
       </div>
@@ -2513,11 +2663,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           theme: 'paper',
           autoTheme: false,
           fontFamily: 'Literata',
-          fontSize: 18,
-          maxWidthClass: 'max-w-xl',
-          lineHeight: 1.7,
-          paragraphSpacing: 20,
-          textAlign: 'justify',
+          fontSize: 20,
+          maxWidthClass: 'max-w-2xl',
+          lineHeight: 1.65,
+          paragraphSpacing: 18,
+          textAlign: 'left',
           subDimmerOpacity: 0,
           amberOpacity: 0,
           bionicEnabled: false,
@@ -2525,7 +2675,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           rulerEnabled: false,
           readingMode: 'paged',
           pageTransition: 'none',
-          ttsContinuous: false
+          ttsContinuous: false,
+          activePreset: 'comfort'
         });
         window.location.reload();
       }
@@ -2560,13 +2711,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.autoTheme) applyAutoTheme();
   // Aplicar i18n ao carregar (caso ainda não tenha sido aplicado)
   if (window.sereneI18n) window.sereneI18n.apply();
+  if (new URLSearchParams(location.search).get('action') === 'library') openLibraryBtn.click();
 
   // --- Onboarding (primeira execução) ---
   (async function onboarding() {
     try {
       const seen = await window.sereneStorage.getPreference('onboarding_seen', false);
       if (!seen) {
-        showToast('Bem-vindo! Pressione ? para ver os atalhos de teclado.', 'info', 6000);
+        const message = matchMedia('(pointer: coarse)').matches
+          ? 'Bem-vindo! Abra Ajustes e escolha um modo de leitura confortável.'
+          : 'Bem-vindo! Pressione ? para ver os atalhos de teclado.';
+        showToast(message, 'info', 6000);
         await window.sereneStorage.savePreference('onboarding_seen', true);
       }
     } catch (e) {

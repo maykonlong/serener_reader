@@ -1,7 +1,9 @@
-const CACHE_NAME = 'serene-reader-v15';
-const ASSETS = [
+const CACHE_NAME = 'serene-reader-v20';
+const CORE_ASSETS = [
   './',
   './index.html',
+  './css/tailwind.css',
+  './css/fonts.css',
   './css/styles.css',
   './icons/icon.svg',
   './js/storage.js',
@@ -19,17 +21,23 @@ const ASSETS = [
   './js/catalog.js',
   './js/i18n.js',
   './js/app.js',
-  './manifest.json'
+  './manifest.json',
+  './asset-manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // Cachear cada asset individualmente para não falhar tudo se um falhar
-      return Promise.allSettled(
-        ASSETS.map((asset) => cache.add(asset).catch(() => {}))
-      );
+    caches.open(CACHE_NAME).then(async (cache) => {
+      let assets = CORE_ASSETS;
+      try {
+        const response = await fetch('./asset-manifest.json', { cache: 'no-store' });
+        const manifest = await response.json();
+        if (Array.isArray(manifest.assets)) assets = [...new Set([...CORE_ASSETS, ...manifest.assets])];
+      } catch (error) {
+        console.warn('Manifesto offline indisponível; usando núcleo do app.', error);
+      }
+      await Promise.allSettled(assets.map((asset) => cache.add(asset)));
     })
   );
 });
@@ -54,23 +62,29 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Para navegação (HTML) e CDN: sempre tentar a rede primeiro (network-first),
-  // para garantir que o usuário receba a versão mais recente do app.
   const isNavigation = event.request.mode === 'navigate';
   const isExternal = url.origin !== self.location.origin;
 
-  if (isNavigation || isExternal) {
+  // APIs e catálogos são recursos opcionais online. Nunca responder HTML no lugar de JSON.
+  if (isExternal) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          // Atualizar o cache em segundo plano
-          if (isNavigation && response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone));
-          }
+        .then((response) => response)
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Navegação: entrega imediata do shell offline e atualiza o cache em segundo plano.
+  if (isNavigation) {
+    event.respondWith(
+      caches.match('./index.html').then((cached) => {
+        const update = fetch(event.request).then((response) => {
+          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', response.clone()));
           return response;
-        })
-        .catch(() => caches.match(event.request).then((c) => c || caches.match('./index.html')))
+        }).catch(() => cached);
+        return cached || update;
+      })
     );
     return;
   }
@@ -81,10 +95,9 @@ self.addEventListener('fetch', (event) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
+      return fetch(event.request).then((response) => {
+        if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        return response;
       });
     })
   );

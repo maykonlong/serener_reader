@@ -1,0 +1,13 @@
+{
+  "appId": "com.serenereader.app",
+  "appName": "Serene Reader",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#F7F4EB",
+    "captureInput": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

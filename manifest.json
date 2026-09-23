@@ -1,12 +1,25 @@
 {
   "name": "SereneReader",
   "short_name": "SereneReader",
+  "id": "./",
+  "lang": "pt-BR",
+  "dir": "ltr",
   "description": "Leitor ergonômico de e-books com filtro circadiano, TTS e persistência offline.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#F7F4EB",
   "theme_color": "#F7F4EB",
   "orientation": "any",
+  "categories": ["books", "education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Abrir biblioteca",
+      "short_name": "Biblioteca",
+      "url": "./index.html?action=library"
+    }
+  ],
   "icons": [
     {
       "src": "icons/icon.svg",

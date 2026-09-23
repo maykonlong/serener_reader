@@ -20,13 +20,15 @@ class SerenePDFReader {
    * @returns {Promise<Object>} - { title, numPages }
    */
   async loadDocument(arrayBuffer) {
-    if (typeof pdfjsLib === 'undefined') {
+    if (typeof window.pdfjsLib === 'undefined') {
       throw new Error('A biblioteca PDF.js é necessária para ler ficheiros PDF.');
     }
 
+    const pdfjsLib = window.pdfjsLib;
+
     // Definir worker do PDF.js
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
     }
 
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
