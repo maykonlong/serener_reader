@@ -5,6 +5,9 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  const isNativeApp = Boolean(window.Capacitor?.isNativePlatform?.());
+  document.documentElement.classList.toggle('native-app', isNativeApp);
+
   // --- Temas Ergonómicos com estilos sincronizados para Gavetas (Drawers) ---
   const THEMES = {
     white: {

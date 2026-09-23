@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v21/);
+  assert.match(worker, /serene-reader-v22/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
 
@@ -56,4 +56,15 @@ test('o GitHub Pages publica o build completo e oferece o APK', async () => {
   assert.match(workflow, /assembleDebug/);
   assert.match(workflow, /upload-pages-artifact@v5/);
   assert.match(workflow, /deploy-pages@v5/);
+});
+
+test('o botão de APK aparece no site e fica oculto no aplicativo nativo', async () => {
+  const html = await read('index.html');
+  const styles = await read('css/styles.css');
+  const app = await read('js/app.js');
+
+  assert.match(html, /android-download-link/);
+  assert.match(styles, /html\.native-app \.android-download-link/);
+  assert.match(app, /Capacitor\?\.isNativePlatform/);
+  assert.match(app, /classList\.toggle\('native-app'/);
 });

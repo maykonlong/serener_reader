@@ -20,6 +20,11 @@ html, body {
 button, input, select, textarea { font: inherit; }
 button { touch-action: manipulation; }
 
+/* O site oferece o APK; o aplicativo Android não precisa baixar a si próprio. */
+html.native-app .android-download-link {
+  display: none !important;
+}
+
 .app-shell {
   min-height: 100dvh;
   isolation: isolate;
