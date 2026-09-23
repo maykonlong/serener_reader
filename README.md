@@ -59,6 +59,12 @@ O app usa o seletor de arquivos do sistema, não pede acesso amplo ao armazename
 
 Hospede o conteúdo de `www/` em HTTPS. No Chrome ou Safari, use “Adicionar à tela inicial”. Depois do primeiro carregamento completo, o leitor e seus recursos locais ficam disponíveis offline.
 
+### GitHub Pages e download do APK
+
+O workflow `.github/workflows/deploy-pages.yml` compila o site, gera o APK Android de teste e publica ambos no GitHub Pages. O botão **Baixar APK** da página aponta para `downloads/serene-reader-android.apk`, criado automaticamente em cada atualização da branch `main`.
+
+No GitHub, deixe **Settings → Pages → Source** configurado como **GitHub Actions**. Não publique a raiz da branch diretamente: ela contém o código-fonte, enquanto a interface pronta e suas dependências locais ficam em `www/` depois do build.
+
 ## Qualidade
 
 ```bash

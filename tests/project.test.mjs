@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v20/);
+  assert.match(worker, /serene-reader-v21/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
 
@@ -45,4 +45,15 @@ test('o PDF.js usa worker local e uma versão sem a falha conhecida antiga', asy
   assert.equal(pkg.dependencies['pdfjs-dist'], '6.3.289');
   assert.match(reader, /\.\/vendor\/pdf\.worker\.min\.mjs/);
   assert.doesNotMatch(reader, /cdnjs\.cloudflare\.com/);
+});
+
+test('o GitHub Pages publica o build completo e oferece o APK', async () => {
+  const html = await read('index.html');
+  const workflow = await read('.github/workflows/deploy-pages.yml');
+
+  assert.match(html, /downloads\/serene-reader-android\.apk/);
+  assert.match(workflow, /npm run check/);
+  assert.match(workflow, /assembleDebug/);
+  assert.match(workflow, /upload-pages-artifact@v5/);
+  assert.match(workflow, /deploy-pages@v5/);
 });

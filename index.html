@@ -53,6 +53,18 @@
     </div>
 
     <div class="flex items-center space-x-1 sm:space-x-2">
+      <!-- Download direto do aplicativo Android gerado no mesmo deploy do site -->
+      <a href="./downloads/serene-reader-android.apk"
+         download="SereneReader-Android.apk"
+         title="Baixar aplicativo Android (APK)"
+         class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-sm active:scale-95 transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14a2 2 0 002-2v-3M3 16v3a2 2 0 002 2"/>
+        </svg>
+        <span class="hidden md:inline">Baixar APK</span>
+        <span class="md:hidden">APK</span>
+      </a>
+
       <!-- Busca -->
       <div id="search-container" class="hidden sm:flex items-center bg-black/5 dark:bg-white/5 rounded-full px-2 py-1 mr-1 transition-all">
         <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -545,6 +557,23 @@
       </button>
     </div>
     <div class="p-4 border-b border-current/10 bg-black/5 dark:bg-white/5">
+      <a href="./downloads/serene-reader-android.apk"
+         download="SereneReader-Android.apk"
+         class="mb-3 w-full px-3.5 py-3 rounded-xl flex items-center justify-between gap-3 bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition active:scale-[0.99]">
+        <span class="flex items-center gap-3 min-w-0">
+          <span class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14a2 2 0 002-2v-3M3 16v3a2 2 0 002 2"/>
+            </svg>
+          </span>
+          <span class="min-w-0 text-left">
+            <strong class="block text-sm leading-tight">Baixar para Android</strong>
+            <span class="block text-[10px] text-white/80 mt-0.5">APK direto • funciona offline</span>
+          </span>
+        </span>
+        <span class="text-xs font-bold flex-shrink-0">Baixar</span>
+      </a>
+
       <label class="w-full py-2.5 px-3 border border-dashed border-current/30 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition">
         <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
         <span class="text-xs font-medium">Adicionar Livros Locais</span>

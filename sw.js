@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serene-reader-v20';
+const CACHE_NAME = 'serene-reader-v21';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -75,16 +75,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navegação: entrega imediata do shell offline e atualiza o cache em segundo plano.
+  // Navegação: busca a versão publicada primeiro e usa o shell salvo sem conexão.
   if (isNavigation) {
     event.respondWith(
-      caches.match('./index.html').then((cached) => {
-        const update = fetch(event.request).then((response) => {
+      fetch(event.request)
+        .then((response) => {
           if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', response.clone()));
           return response;
-        }).catch(() => cached);
-        return cached || update;
-      })
+        })
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
