@@ -112,7 +112,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     indent: 28,
     subDimmerOpacity: 0,
     amberOpacity: 0,
-    ttsRate: 1.0,
+    ttsRate: 0.95,
+    ttsPitch: 1.0,
+    ambientVolume: 0.35,
     isPdfMode: false,
     pdfText: '',
     pdfZoom: 1.0,
@@ -223,6 +225,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ttsPitchVal = document.getElementById('tts-pitch-val');
   const ttsContinuousToggle = document.getElementById('tts-continuous-toggle');
   const ttsTimerBtns = document.querySelectorAll('.tts-timer-btn');
+  const ambientVolumeSlider = document.getElementById('ambient-volume-slider');
+  const ambientVolumeVal = document.getElementById('ambient-volume-val');
   const bionicToggle = document.getElementById('bionic-toggle');
   const linefocusToggle = document.getElementById('linefocus-toggle');
   const rulerToggle = document.getElementById('ruler-toggle');
@@ -346,6 +350,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.sereneTTS.autoContinue = saved.ttsContinuous;
         if (ttsContinuousToggle) ttsContinuousToggle.checked = saved.ttsContinuous;
       }
+      state.ttsRate = saved.ttsRate ?? 0.95;
+      state.ttsPitch = saved.ttsPitch ?? 1.0;
+      state.ambientVolume = saved.ambientVolume ?? 0.35;
+      window.sereneTTS?.setRate(state.ttsRate);
+      window.sereneTTS?.setPitch(state.ttsPitch);
+      if (saved.ttsVoiceName) window.sereneTTS?.setVoice(saved.ttsVoiceName);
+      window.sereneAmbient?.setVolume(state.ambientVolume);
+      if (ttsRateSlider) ttsRateSlider.value = String(state.ttsRate);
+      if (ttsRateVal) ttsRateVal.textContent = `${state.ttsRate}x`;
+      if (ttsPitchSlider) ttsPitchSlider.value = String(state.ttsPitch);
+      if (ttsPitchVal) ttsPitchVal.textContent = `${state.ttsPitch}x`;
+      if (ambientVolumeSlider) ambientVolumeSlider.value = String(Math.round(state.ambientVolume * 100));
+      if (ambientVolumeVal) ambientVolumeVal.textContent = `${Math.round(state.ambientVolume * 100)}%`;
       if (saved.pageTransition) state.pageTransition = saved.pageTransition;
       if (saved.highContrast) {
         document.body.classList.add('high-contrast');
@@ -385,6 +402,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       pdfZoom: state.pdfZoom,
       pageTransition: state.pageTransition,
       ttsContinuous: window.sereneTTS ? window.sereneTTS.autoContinue : false,
+      ttsRate: window.sereneTTS ? window.sereneTTS.rate : state.ttsRate,
+      ttsPitch: window.sereneTTS ? window.sereneTTS.pitch : state.ttsPitch,
+      ttsVoiceName: window.sereneTTS?.voice?.name || window.sereneTTS?.preferredVoiceName || '',
+      ambientVolume: window.sereneAmbient ? window.sereneAmbient.volume : state.ambientVolume,
       highContrast: document.body.classList.contains('high-contrast'),
       language: window.sereneI18n ? window.sereneI18n.lang : 'pt',
       activePreset: state.activePreset
@@ -1645,17 +1666,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Sintetizador de Voz (TTS) ---
+  function htmlToSpeechText(html) {
+    const container = document.createElement('div');
+    container.innerHTML = html || '';
+    const blockTags = new Set(['ADDRESS', 'ARTICLE', 'BLOCKQUOTE', 'DIV', 'FIGCAPTION', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'P', 'PRE', 'SECTION', 'TR']);
+    const parts = [];
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        parts.push(node.nodeValue || '');
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const isBlock = blockTags.has(node.tagName);
+      if (isBlock && parts.length) parts.push('\n');
+      if (node.tagName === 'BR') parts.push('\n');
+      else node.childNodes.forEach(walk);
+      if (isBlock) parts.push('\n');
+    };
+    container.childNodes.forEach(walk);
+    return parts.join('')
+      .split(/\n+/)
+      .map(line => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .map(line => /[.!?…;:]$/.test(line) ? line : `${line}.`)
+      .join('\n');
+  }
+
+  function getPageTextToRead() {
+    if (state.isPdfMode) return state.pdfText || '';
+    return htmlToSpeechText(state.pages[state.currentPage] || '');
+  }
+
   if (ttsPlayBtn) {
     ttsPlayBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      let textToRead = '';
-      if (state.isPdfMode) {
-        textToRead = state.pdfText || 'Página do PDF em exibição.';
-      } else {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = state.pages[state.currentPage] || '';
-        textToRead = tempDiv.textContent || '';
-      }
+      const textToRead = getPageTextToRead() || (state.isPdfMode ? 'Página do PDF em exibição.' : '');
 
       const isStarting = !window.sereneTTS.isPlaying && !window.sereneTTS.isPaused;
       window.sereneTTS.setMediaMetadata(state.currentBook ? state.currentBook.title : null, state.currentBook ? state.currentBook.author : null);
@@ -1696,16 +1741,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     ttsRateSlider.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       window.sereneTTS.setRate(val);
+      state.ttsRate = window.sereneTTS.rate;
       if (ttsRateVal) ttsRateVal.textContent = `${val}x`;
     });
+    ttsRateSlider.addEventListener('change', savePreferences);
   }
 
   if (ttsPitchSlider) {
     ttsPitchSlider.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       window.sereneTTS.setPitch(val);
+      state.ttsPitch = window.sereneTTS.pitch;
       if (ttsPitchVal) ttsPitchVal.textContent = `${val}x`;
     });
+    ttsPitchSlider.addEventListener('change', savePreferences);
   }
 
   if (ttsVoiceSelect) {
@@ -1729,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (window.sereneTTS.voice) ttsVoiceSelect.value = window.sereneTTS.voice.name;
     };
     setTimeout(populateVoices, 500); // Aguardar API TTS instanciar as vozes
-    if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = populateVoices;
+    if (window.speechSynthesis?.addEventListener) window.speechSynthesis.addEventListener('voiceschanged', populateVoices);
 
     if (ttsLangFilter) {
       ttsLangFilter.addEventListener('change', populateVoices);
@@ -1737,7 +1786,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (ttsVoiceApplyBtn) {
       ttsVoiceApplyBtn.addEventListener('click', () => {
-        window.sereneTTS.setVoice(ttsVoiceSelect.value);
+        if (window.sereneTTS.setVoice(ttsVoiceSelect.value)) {
+          savePreferences();
+          showToast('Voz aplicada. A preferência ficará salva.', 'success');
+        }
       });
     }
   }
@@ -1764,12 +1816,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const type = btn.dataset.type;
-      if (window.sereneAmbient) {
-        if (type === 'off') window.sereneAmbient.stop();
-        else window.sereneAmbient.toggle(type);
+      if (type === 'off') {
+        if (window.sereneAmbient) window.sereneAmbient.stop();
+        if (window.sereneTTS) window.sereneTTS.stop();
+        clearTtsHighlight();
+        showToast('Todo o áudio foi interrompido.', 'success');
+      } else if (window.sereneAmbient) {
+        window.sereneAmbient.toggle(type);
       }
     });
   });
+  if (ambientVolumeSlider) {
+    ambientVolumeSlider.addEventListener('input', (e) => {
+      const percent = Number(e.target.value);
+      state.ambientVolume = percent / 100;
+      window.sereneAmbient?.setVolume(state.ambientVolume);
+      if (ambientVolumeVal) ambientVolumeVal.textContent = `${percent}%`;
+    });
+    ambientVolumeSlider.addEventListener('change', savePreferences);
+  }
   if (window.sereneAmbient) {
     window.sereneAmbient.onStateChange = ({ playing, type }) => {
       ambientBtns.forEach(b => {
@@ -1854,15 +1919,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Leitura Contínua (virar página automaticamente ao terminar o TTS) ---
-  function getPageTextToRead() {
-    if (state.isPdfMode) {
-      return state.pdfText || '';
-    }
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = state.pages[state.currentPage] || '';
-    return tempDiv.textContent || '';
-  }
-
   if (ttsContinuousToggle) {
     ttsContinuousToggle.addEventListener('change', (e) => {
       window.sereneTTS.autoContinue = e.target.checked;

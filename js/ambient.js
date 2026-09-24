@@ -9,7 +9,9 @@ class SereneAmbient {
     this.gain = null;
     this.currentType = null;
     this.playing = false;
-    this.volume = 0.4;
+    this.volume = 0.35;
+    this.sources = new Set();
+    this.sessionId = 0;
     this.onStateChange = null;
   }
 
@@ -20,14 +22,21 @@ class SereneAmbient {
       this.ctx = new AudioCtx();
       this.gain = this.ctx.createGain();
       this.gain.gain.value = this.volume;
-      this.gain.connect(this.ctx.destination);
+      this.compressor = this.ctx.createDynamicsCompressor();
+      this.compressor.threshold.value = -18;
+      this.compressor.knee.value = 18;
+      this.compressor.ratio.value = 3;
+      this.compressor.attack.value = 0.02;
+      this.compressor.release.value = 0.35;
+      this.gain.connect(this.compressor);
+      this.compressor.connect(this.ctx.destination);
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     return this.ctx;
   }
 
   /** Cria um buffer de ruído (branco ou colorido) de `seconds`. */
-  _noiseBuffer(seconds = 2, type = 'white') {
+  _noiseBuffer(seconds = 10, type = 'white') {
     const ctx = this._ensureCtx();
     const rate = ctx.sampleRate;
     const length = Math.floor(rate * seconds);
@@ -57,7 +66,7 @@ class SereneAmbient {
   }
 
   /** Ruído de chuva: combina ruído branco filtrado com gotas aleatórias. */
-  _rainBuffer(seconds = 2) {
+  _rainBuffer(seconds = 10) {
     const ctx = this._ensureCtx();
     const rate = ctx.sampleRate;
     const length = Math.floor(rate * seconds);
@@ -65,14 +74,15 @@ class SereneAmbient {
     const data = buffer.getChannelData(0);
     for (let i = 0; i < length; i++) {
       const base = Math.random() * 2 - 1;
-      // Simples envelope de gotas aleatórias
-      data[i] = base * 0.4 + (Math.random() < 0.002 ? Math.random() * 0.8 : 0);
+      // Camada contínua e gotas suaves, evitando o ruído metálico de buffers curtos.
+      const drop = Math.random() < 0.0012 ? Math.random() * 0.55 : 0;
+      data[i] = base * 0.27 + drop;
     }
     return buffer;
   }
 
   /** Ruído de oceano: ruído marrom filtrado com ondas (LFO de amplitude). */
-  _oceanBuffer(seconds = 3) {
+  _oceanBuffer(seconds = 12) {
     const ctx = this._ensureCtx();
     const rate = ctx.sampleRate;
     const length = Math.floor(rate * seconds);
@@ -90,7 +100,7 @@ class SereneAmbient {
   }
 
   /** Ruído de vento: ruído rosa filtrado em banda. */
-  _windBuffer(seconds = 3) {
+  _windBuffer(seconds = 12) {
     const ctx = this._ensureCtx();
     const rate = ctx.sampleRate;
     const length = Math.floor(rate * seconds);
@@ -110,7 +120,7 @@ class SereneAmbient {
   }
 
   /** Ruído de fogo: estalos aleatórios sobre ruído marrom. */
-  _fireBuffer(seconds = 3) {
+  _fireBuffer(seconds = 10) {
     const ctx = this._ensureCtx();
     const rate = ctx.sampleRate;
     const length = Math.floor(rate * seconds);
@@ -133,6 +143,7 @@ class SereneAmbient {
   start(type) {
     if (type === this.currentType && this.playing) return;
     this.stop();
+    this.sessionId += 1;
 
     const ctx = this._ensureCtx();
     if (!ctx) {
@@ -142,45 +153,87 @@ class SereneAmbient {
 
     let buffer;
     let filterType = null;
-    if (type === 'rain') { buffer = this._rainBuffer(); filterType = 'lowpass'; }
-    else if (type === 'brown') buffer = this._noiseBuffer(2, 'brown');
-    else if (type === 'pink') buffer = this._noiseBuffer(2, 'pink');
-    else if (type === 'white') buffer = this._noiseBuffer(2, 'white');
-    else if (type === 'ocean') { buffer = this._oceanBuffer(); filterType = 'lowpass'; }
-    else if (type === 'wind') buffer = this._windBuffer();
-    else if (type === 'fire') buffer = this._fireBuffer();
-    else buffer = this._noiseBuffer(2, 'white');
+    if (type === 'rain') { buffer = this._rainBuffer(); filterType = 'rain'; }
+    else if (type === 'brown') { buffer = this._noiseBuffer(10, 'brown'); filterType = 'brown'; }
+    else if (type === 'pink') { buffer = this._noiseBuffer(10, 'pink'); filterType = 'pink'; }
+    else if (type === 'white') { buffer = this._noiseBuffer(10, 'white'); filterType = 'white'; }
+    else if (type === 'ocean') { buffer = this._oceanBuffer(); filterType = 'ocean'; }
+    else if (type === 'wind') { buffer = this._windBuffer(); filterType = 'wind'; }
+    else if (type === 'fire') { buffer = this._fireBuffer(); filterType = 'fire'; }
+    else { buffer = this._noiseBuffer(10, 'white'); filterType = 'white'; }
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
 
     let node = source;
-    if (filterType === 'lowpass') {
-      // Filtro passa-baixa para suavizar chuva e oceano
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 6000;
-      source.connect(filter);
-      node = filter;
-    }
-    node.connect(this.gain);
+    const filter = ctx.createBiquadFilter();
+    const profiles = {
+      rain: ['highpass', 700, 0.55],
+      ocean: ['lowpass', 850, 0.7],
+      wind: ['bandpass', 520, 0.45],
+      fire: ['lowpass', 1900, 0.6],
+      brown: ['lowpass', 1100, 0.7],
+      pink: ['lowpass', 4200, 0.6],
+      white: ['highpass', 140, 0.5]
+    };
+    const [filterMode, frequency, q] = profiles[filterType] || profiles.white;
+    filter.type = filterMode;
+    filter.frequency.value = frequency;
+    filter.Q.value = q;
+    source.connect(filter);
+    node = filter;
+
+    const sourceGain = ctx.createGain();
+    sourceGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    sourceGain.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.18);
+    node.connect(sourceGain);
+    sourceGain.connect(this.gain);
 
     source.start();
     this.source = source;
+    this.sourceGain = sourceGain;
+    this.sources.add(source);
+    source.onended = () => {
+      this.sources.delete(source);
+      try { source.disconnect(); } catch (e) {}
+      try { filter.disconnect(); } catch (e) {}
+      try { sourceGain.disconnect(); } catch (e) {}
+    };
     this.currentType = type;
     this.playing = true;
+    if (this.ctx?.state === 'suspended') this.ctx.resume().catch(() => {});
     this._notify();
   }
 
   stop() {
-    if (this.source) {
-      try { this.source.stop(); } catch (e) {}
-      this.source = null;
+    const sessionId = ++this.sessionId;
+    const ctx = this.ctx;
+    const stopAt = ctx ? ctx.currentTime + 0.08 : 0;
+    if (this.sourceGain && ctx) {
+      try {
+        this.sourceGain.gain.cancelScheduledValues(ctx.currentTime);
+        this.sourceGain.gain.setValueAtTime(Math.max(0.0001, this.sourceGain.gain.value), ctx.currentTime);
+        this.sourceGain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+      } catch (e) {}
     }
+    this.sources.forEach(source => {
+      try { source.stop(stopAt); } catch (e) {}
+    });
+    this.sources.clear();
+    this.source = null;
+    this.sourceGain = null;
     this.currentType = null;
     this.playing = false;
     this._notify();
+    // Suspender o contexto garante silêncio inclusive em WebViews que deixam um buffer órfão.
+    if (ctx) {
+      setTimeout(() => {
+        if (this.sessionId === sessionId && !this.playing && ctx.state === 'running') {
+          ctx.suspend().catch(() => {});
+        }
+      }, 120);
+    }
   }
 
   toggle(type) {
@@ -193,12 +246,16 @@ class SereneAmbient {
 
   setVolume(vol) {
     this.volume = Math.max(0, Math.min(1, vol));
-    if (this.gain) this.gain.gain.value = this.volume;
+    if (this.gain && this.ctx) {
+      this.gain.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.gain.gain.linearRampToValueAtTime(this.volume, this.ctx.currentTime + 0.04);
+    }
+    this._notify();
   }
 
   _notify() {
     if (typeof this.onStateChange === 'function') {
-      this.onStateChange({ playing: this.playing, type: this.currentType });
+      this.onStateChange({ playing: this.playing, type: this.currentType, volume: this.volume });
     }
   }
 }

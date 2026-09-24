@@ -10,10 +10,14 @@ class SereneTTSEngine {
     this.utterance = null;
     this.isPlaying = false;
     this.isPaused = false;
-    this.rate = 1.0;
+    this.rate = 0.95;
     this.pitch = 1.0;
     this.voice = null;
+    this.preferredVoiceName = '';
     this.voices = [];
+    this.chunks = [];
+    this.chunkIndex = 0;
+    this.chunkOffset = 0;
     this.sleepTimer = null;
     this.sleepTimeoutEnd = null;
     this.autoContinue = false;
@@ -63,24 +67,44 @@ class SereneTTSEngine {
 
     const loadVoices = () => {
       this.voices = this.synth.getVoices();
-      // Tentar selecionar voz padrão em português (PT-PT ou PT-BR)
-      if (!this.voice && this.voices.length > 0) {
-        this.voice = this.voices.find(v => v.lang.startsWith('pt')) || this.voices[0];
-      }
+      const preferred = this.voices.find(v => v.name === this.preferredVoiceName);
+      if (preferred) this.voice = preferred;
+      else if (!this.voice && this.voices.length > 0) this.voice = this.getBestVoice('pt-BR');
     };
 
     loadVoices();
-    if (this.synth.onvoiceschanged !== undefined) {
-      this.synth.onvoiceschanged = loadVoices;
-    }
+    if (typeof this.synth.addEventListener === 'function') this.synth.addEventListener('voiceschanged', loadVoices);
+    else if (this.synth.onvoiceschanged !== undefined) this.synth.onvoiceschanged = loadVoices;
   }
 
   getPortugueseVoices() {
     if (!this.synth) return [];
-    return this.voices.filter(v => v.lang.startsWith('pt') || v.lang.startsWith('es') || v.lang.startsWith('en'));
+    return this.voices
+      .filter(v => /^(pt|es|en)/i.test(v.lang || ''))
+      .sort((a, b) => this._voiceScore(b, 'pt-BR') - this._voiceScore(a, 'pt-BR'));
+  }
+
+  _voiceScore(voice, language = 'pt-BR') {
+    const lang = String(voice?.lang || '').toLowerCase();
+    const target = String(language || 'pt-BR').toLowerCase();
+    const name = String(voice?.name || '').toLowerCase();
+    let score = 0;
+    if (lang === target) score += 120;
+    else if (lang.startsWith(target.split('-')[0])) score += 90;
+    else if (lang.startsWith('pt')) score += 70;
+    if (voice?.default) score += 25;
+    if (voice?.localService) score += 10;
+    if (/natural|neural|premium|enhanced|google|microsoft|samsung/.test(name)) score += 35;
+    if (/eloquence|espeak|compact|robot/.test(name)) score -= 25;
+    return score;
+  }
+
+  getBestVoice(language = 'pt-BR') {
+    return [...this.voices].sort((a, b) => this._voiceScore(b, language) - this._voiceScore(a, language))[0] || null;
   }
 
   setVoice(voiceName) {
+    this.preferredVoiceName = voiceName || '';
     const selected = this.voices.find(v => v.name === voiceName);
     if (selected) {
       this.voice = selected;
@@ -90,11 +114,13 @@ class SereneTTSEngine {
         this.stop();
         setTimeout(() => this.speak(text), 100);
       }
+      return true;
     }
+    return false;
   }
 
   setRate(newRate) {
-    this.rate = parseFloat(newRate) || 1.0;
+    this.rate = Math.max(0.6, Math.min(2, parseFloat(newRate) || 0.95));
     if (this.isPlaying && !this.isPaused) {
       const text = this.currentText;
       this.stop();
@@ -103,7 +129,7 @@ class SereneTTSEngine {
   }
 
   setPitch(newPitch) {
-    this.pitch = parseFloat(newPitch) || 1.0;
+    this.pitch = Math.max(0.75, Math.min(1.35, parseFloat(newPitch) || 1.0));
     if (this.isPlaying && !this.isPaused) {
       const text = this.currentText;
       this.stop();
@@ -149,15 +175,60 @@ class SereneTTSEngine {
       return;
     }
 
-    this.stop();
-    const playbackId = this.playbackId;
+    this._cancelSpeech(false);
+    const playbackId = ++this.playbackId;
 
-    const cleanText = text.replace(/<[^>]*>/g, ' ');
+    const cleanText = String(text)
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\u00ad/g, '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     this.currentText = text;
+    this.chunks = this._buildChunks(cleanText);
+    this.chunkIndex = 0;
+    this.chunkOffset = 0;
+    this._speakCurrentChunk(playbackId);
+  }
 
-    this.utterance = new SpeechSynthesisUtterance(cleanText);
+  _buildChunks(text, maxLength = 650) {
+    const chunks = [];
+    let cursor = 0;
+    while (cursor < text.length) {
+      while (/\s/.test(text[cursor] || '')) cursor++;
+      if (cursor >= text.length) break;
+      let end = Math.min(text.length, cursor + maxLength);
+      if (end < text.length) {
+        const windowText = text.slice(cursor, end);
+        const minimum = Math.floor(maxLength * 0.55);
+        const sentenceBreaks = [
+          windowText.lastIndexOf('. '), windowText.lastIndexOf('! '),
+          windowText.lastIndexOf('? '), windowText.lastIndexOf('; '),
+          windowText.lastIndexOf(': '), windowText.lastIndexOf('\n')
+        ].filter(index => index >= minimum);
+        const softBreaks = [windowText.lastIndexOf(', '), windowText.lastIndexOf(' ')]
+          .filter(index => index >= minimum);
+        const candidates = sentenceBreaks.length ? sentenceBreaks : softBreaks;
+        if (candidates.length) end = cursor + Math.max(...candidates) + 1;
+      }
+      const raw = text.slice(cursor, end);
+      const leading = raw.length - raw.trimStart().length;
+      const value = raw.trim();
+      if (value) chunks.push({ text: value, offset: cursor + leading });
+      cursor = Math.max(end, cursor + 1);
+    }
+    return chunks;
+  }
+
+  _speakCurrentChunk(playbackId) {
+    if (playbackId !== this.playbackId || !this.chunks.length) return;
+    const chunk = this.chunks[this.chunkIndex];
+    this.chunkOffset = chunk.offset;
+    this.utterance = new SpeechSynthesisUtterance(chunk.text);
     this.utterance.rate = this.rate;
     this.utterance.pitch = this.pitch;
+    this.utterance.volume = 1;
+    this.utterance.lang = this.voice?.lang || 'pt-BR';
 
     if (this.voice) {
       this.utterance.voice = this.voice;
@@ -172,20 +243,23 @@ class SereneTTSEngine {
 
     this.utterance.onboundary = (e) => {
       if (playbackId !== this.playbackId) return;
-      this.currentCharIndex = e.charIndex || 0;
+      this.currentCharIndex = this.chunkOffset + (e.charIndex || 0);
       if (typeof this.onBoundary === 'function') {
-        this.onBoundary(e.charIndex || 0);
+        this.onBoundary(this.currentCharIndex);
       }
     };
 
     this.utterance.onend = () => {
       if (playbackId !== this.playbackId) return;
+      if (this.chunkIndex < this.chunks.length - 1) {
+        this.chunkIndex += 1;
+        setTimeout(() => this._speakCurrentChunk(playbackId), 18);
+        return;
+      }
       this.isPlaying = false;
       this.isPaused = false;
       this.notifyStateChange('ended');
-      if (typeof this.onEnd === 'function') {
-        this.onEnd();
-      }
+      if (typeof this.onEnd === 'function') this.onEnd();
     };
 
     this.utterance.onerror = (e) => {
@@ -194,9 +268,7 @@ class SereneTTSEngine {
       this.isPlaying = false;
       this.isPaused = false;
       this.notifyStateChange('stopped');
-      if (typeof this.onEnd === 'function') {
-        this.onEnd();
-      }
+      // Não avança páginas após falha de áudio; o usuário decide se quer tentar novamente.
     };
 
     this.synth.speak(this.utterance);
@@ -220,14 +292,30 @@ class SereneTTSEngine {
   }
 
   stop() {
+    this._cancelSpeech(true);
+    this.notifyStateChange('stopped');
+  }
+
+  _cancelSpeech(retryCancel = false) {
     if (this.synth) {
       this.playbackId += 1;
+      const stoppedPlaybackId = this.playbackId;
+      if (this.isPaused) {
+        try { this.synth.resume(); } catch (e) {}
+      }
       this.synth.cancel();
+      if (retryCancel) {
+        // Alguns WebViews Android só esvaziam a fila no ciclo seguinte.
+        setTimeout(() => {
+          if (this.playbackId === stoppedPlaybackId && !this.isPlaying) this.synth.cancel();
+        }, 60);
+      }
       this.utterance = null;
+      this.chunks = [];
+      this.chunkIndex = 0;
       this.currentCharIndex = 0;
       this.isPlaying = false;
       this.isPaused = false;
-      this.notifyStateChange('stopped');
     }
   }
 
@@ -242,6 +330,11 @@ class SereneTTSEngine {
   }
 
   notifyStateChange(state) {
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.playbackState = state === 'playing' ? 'playing' : (state === 'paused' ? 'paused' : 'none');
+      } catch (e) {}
+    }
     if (typeof this.onStateChange === 'function') {
       this.onStateChange({
         state,

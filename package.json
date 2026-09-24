@@ -1,6 +1,6 @@
 {
   "name": "serene-reader",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "private": true,
   "description": "Leitor de ebooks offline-first, acessível e empacotado para Android.",
   "scripts": {

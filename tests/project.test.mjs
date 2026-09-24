@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const read = (file) => readFile(new URL(`../${file}`, import.meta.url), 'utf8');
 
@@ -27,7 +28,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v29/);
+  assert.match(worker, /serene-reader-v30/);
   assert.match(worker, /isMutableAsset/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
@@ -37,7 +38,7 @@ test('o pacote Android protege os dados locais e bloqueia HTTP aberto', async ()
   const gradle = await read('android/app/build.gradle');
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(manifest, /android:usesCleartextTraffic="false"/);
-  assert.match(gradle, /versionName "2\.2\.1"/);
+  assert.match(gradle, /versionName "2\.2\.2"/);
 });
 
 test('o PDF.js usa worker local e uma versão sem a falha conhecida antiga', async () => {
@@ -76,10 +77,53 @@ test('o áudio oferece pausa, parada e ambiente sem som', async () => {
   const tts = await read('js/tts_engine.js');
 
   assert.match(html, /id="tts-stop-btn"/);
-  assert.match(html, /data-type="off">Sem som/);
+  assert.match(html, /data-type="off"[^>]*>Sem som/);
   assert.match(app, /sereneTTS\.stop\(\)/);
   assert.match(app, /sereneAmbient\.stop\(\)/);
+  assert.match(app, /Todo o áudio foi interrompido/);
+  assert.match(html, /id="ambient-volume-slider"/);
   assert.match(tts, /playbackId/);
+  assert.match(tts, /_buildChunks/);
+  assert.match(tts, /getBestVoice/);
+});
+
+test('o motor de voz cancela a fila e divide textos longos no Android', async () => {
+  const source = await read('js/tts_engine.js');
+  const spoken = [];
+  let cancelCount = 0;
+  const voices = [
+    { name: 'Voz comum', lang: 'pt-PT', default: true, localService: true },
+    { name: 'Google Português Natural', lang: 'pt-BR', default: false, localService: true }
+  ];
+  const synth = {
+    getVoices: () => voices,
+    addEventListener: () => {},
+    speak: utterance => spoken.push(utterance),
+    cancel: () => { cancelCount += 1; },
+    pause: () => {},
+    resume: () => {}
+  };
+  class Utterance {
+    constructor(text) { this.text = text; }
+  }
+  const context = {
+    window: { speechSynthesis: synth, MediaMetadata: class {} },
+    navigator: {},
+    SpeechSynthesisUtterance: Utterance,
+    MediaMetadata: class {},
+    setTimeout: callback => { callback(); return 1; },
+    clearTimeout: () => {},
+    console
+  };
+  vm.runInNewContext(source, context);
+  const engine = context.window.sereneTTS;
+  assert.equal(engine.voice.name, 'Google Português Natural');
+  engine.speak('Uma frase longa. '.repeat(100));
+  assert.ok(engine.chunks.length > 1);
+  assert.equal(spoken.length, 1);
+  engine.stop();
+  assert.ok(cancelCount >= 2);
+  assert.equal(engine.isPlaying, false);
 });
 
 test('a configuração inicial tem aparência editorial de livro', async () => {
@@ -125,7 +169,7 @@ test('a experiência móvel mantém navegação visível e organiza os ajustes',
   assert.match(app, /setSettingsPanel/);
   assert.match(app, /movedLines/);
   assert.match(pagination, /isVerse/);
-  assert.match(html, /pagination\.js\?v=2\.2\.1/);
+  assert.match(html, /pagination\.js\?v=2\.2\.2/);
 });
 
 test('o PWA e o Android usam a nova identidade de livro aberto', async () => {

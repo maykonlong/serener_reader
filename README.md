@@ -13,7 +13,7 @@ Nenhum conteúdo de livro é enviado para servidores. Biblioteca, progresso, pre
 - Leitura paginada ou por rolagem, modo imersivo, busca, índice com pesquisa e salto direto para qualquer capítulo, progresso e estimativa de tempo.
 - Fontes Literata, Lora, Merriweather, Atkinson Hyperlegible, Lexend, Vollkorn e OpenDyslexic empacotadas localmente.
 - Ajuste de tamanho, entrelinha, parágrafos, largura, alinhamento e transição de página.
-- TTS com vozes do sistema, leitura contínua, sleep timer e destaque palavra a palavra.
+- TTS com escolha automática da melhor voz em português, cadência natural, leitura contínua, sleep timer, silêncio total e destaque palavra a palavra.
 - Régua, foco de linha, leitura biônica, RSVP, alto contraste e sons ambientes.
 
 ## Biblioteca e formatos
