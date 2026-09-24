@@ -1,4 +1,4 @@
-const CACHE_NAME = 'serene-reader-v25';
+const CACHE_NAME = 'serene-reader-v27';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -69,6 +69,7 @@ self.addEventListener('fetch', (event) => {
 
   const isNavigation = event.request.mode === 'navigate';
   const isExternal = url.origin !== self.location.origin;
+  const isMutableAsset = ['script', 'style', 'worker'].includes(event.request.destination);
 
   // APIs e catálogos são recursos opcionais online. Nunca responder HTML no lugar de JSON.
   if (isExternal) {
@@ -89,6 +90,20 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // CSS e JavaScript mudam junto com a interface. Quando houver rede, priorizar
+  // a publicação atual evita misturar HTML novo com assets antigos do cache.
+  if (isMutableAsset) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }

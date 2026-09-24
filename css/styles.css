@@ -549,6 +549,45 @@ b, strong { font-weight: 700; }
   transition: transform 250ms ease, opacity 250ms ease;
 }
 
+@media (max-width: 360px), (max-height: 620px) {
+  #quick-zoom-bar {
+    display: none;
+  }
+
+  .tts-voice-row {
+    flex-direction: column;
+  }
+
+  .tts-voice-row button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 639px) and (orientation: landscape) and (max-height: 460px) {
+  #mobile-reader-tools {
+    display: none !important;
+  }
+
+  #open-toc-btn,
+  #add-bookmark-btn,
+  #immersive-btn {
+    display: block !important;
+  }
+
+  #open-settings-btn {
+    display: flex !important;
+  }
+
+  .reading-surface {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+
+  #touch-hint {
+    display: none;
+  }
+}
+
 body.immersive #top-bar {
   position: fixed;
   inset: 0 0 auto 0;

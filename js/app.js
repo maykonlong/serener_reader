@@ -515,6 +515,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const movedBlocks = [];
     while (pageContentEl.scrollHeight > pageContentEl.clientHeight + 2 && pageContentEl.children.length > 1) {
       const lastBlock = pageContentEl.lastElementChild;
+
+      // Em poemas e textos com quebras explícitas, mover somente as últimas
+      // linhas. Remover o parágrafo inteiro deixava páginas quase vazias.
+      if (lastBlock.tagName === 'P' && lastBlock.querySelector('br')) {
+        const lines = lastBlock.innerHTML.split(/<br\s*\/?>/i);
+        const movedLines = [];
+        while (pageContentEl.scrollHeight > pageContentEl.clientHeight + 2 && lines.length > 1) {
+          movedLines.unshift(lines.pop());
+          lastBlock.innerHTML = lines.join('<br>');
+        }
+        if (movedLines.length > 0) {
+          const continuation = lastBlock.cloneNode(false);
+          continuation.innerHTML = movedLines.join('<br>');
+          movedBlocks.unshift(continuation.outerHTML);
+        }
+        if (pageContentEl.scrollHeight <= pageContentEl.clientHeight + 2) break;
+      }
+
       movedBlocks.unshift(lastBlock.outerHTML);
       lastBlock.remove();
     }

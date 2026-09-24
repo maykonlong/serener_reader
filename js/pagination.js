@@ -68,10 +68,10 @@ class SerenePaginator {
     this.measurer.style.hyphens = 'auto';
 
     // Template de parágrafo com estilos inline para garantir medição e exibição idênticas
-    const para = (t) => {
+    const para = (t, forceVerse = false) => {
       const lines = t.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
       const averageLineLength = lines.length ? lines.reduce((sum, line) => sum + line.length, 0) / lines.length : t.length;
-      const looksLikeVerse = lines.length >= 3 && averageLineLength < 72;
+      const looksLikeVerse = forceVerse || (lines.length >= 3 && averageLineLength < 72);
       const looksLikeHeading = lines.length === 1 && t.length < 80 && t === t.toLocaleUpperCase('pt-BR');
       const normalized = looksLikeVerse ? lines.join('\n') : lines.join(' ');
       const safeText = this.escapeHtml(normalized).replaceAll('\n', '<br>');
@@ -100,6 +100,34 @@ class SerenePaginator {
         // Coube perfeitamente!
         currentAcc.push(pHTML);
       } else {
+        const paragraphLines = paragraph.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const averageLineLength = paragraphLines.length
+          ? paragraphLines.reduce((sum, line) => sum + line.length, 0) / paragraphLines.length
+          : paragraph.length;
+        const isVerse = paragraphLines.length >= 3 && averageLineLength < 72;
+
+        // Versos precisam poder continuar na mesma página do título. Dividir pelas
+        // linhas originais evita criar uma página quase vazia apenas com o cabeçalho.
+        if (isVerse) {
+          let lineAcc = [];
+          for (const line of paragraphLines) {
+            const candidateLines = [...lineAcc, line];
+            this.measurer.innerHTML = [...currentAcc, para(candidateLines.join('\n'), true)].join('');
+            if (this.measurer.scrollHeight <= availableHeight) {
+              lineAcc = candidateLines;
+              continue;
+            }
+
+            if (currentAcc.length > 0 || lineAcc.length > 0) {
+              pages.push([...currentAcc, ...(lineAcc.length ? [para(lineAcc.join('\n'), true)] : [])].join(''));
+            }
+            currentAcc = [];
+            lineAcc = [line];
+          }
+          if (lineAcc.length > 0) currentAcc.push(para(lineAcc.join('\n'), true));
+          continue;
+        }
+
         // Estourou a altura! Se já tínhamos parágrafos acumulados, fecha a página atual
         if (currentAcc.length > 0) {
           pages.push(currentAcc.join(''));
