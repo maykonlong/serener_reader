@@ -223,6 +223,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const addBookmarkBtn = document.getElementById('add-bookmark-btn');
   const bookmarksListEl = document.getElementById('bookmarks-list');
+  const settingsContent = document.querySelector('.settings-content');
+  const settingsTabs = document.querySelectorAll('[data-settings-tab]');
+  const settingsPanels = document.querySelectorAll('[data-settings-panel]');
+  const mobileLibraryBtn = document.getElementById('mobile-library-btn');
+  const mobileTocBtn = document.getElementById('mobile-toc-btn');
+  const mobileBookmarkBtn = document.getElementById('mobile-bookmark-btn');
+  const mobileSettingsBtn = document.getElementById('mobile-settings-btn');
 
   // --- Prevenir que cliques dentro das gavetas se propaguem para o backdrop ---
   [settingsDrawer, libraryDrawer, tocDrawer].forEach(drawer => {
@@ -1067,6 +1074,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     closeDrawer(tocDrawer, tocBackdrop, true);
   });
   if (tocBackdrop) tocBackdrop.addEventListener('click', () => closeDrawer(tocDrawer, tocBackdrop, true));
+
+  // Ajustes organizados por finalidade, sem obrigar o leitor a percorrer um painel enorme.
+  function setSettingsPanel(panelName = 'reading') {
+    settingsTabs.forEach((tab) => {
+      const active = tab.dataset.settingsTab === panelName;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+    settingsPanels.forEach((panel) => {
+      panel.dataset.settingsActive = String(panel.dataset.settingsPanel === panelName);
+    });
+    if (settingsContent) settingsContent.scrollTop = 0;
+  }
+
+  settingsTabs.forEach((tab) => {
+    tab.addEventListener('click', () => setSettingsPanel(tab.dataset.settingsTab));
+  });
+  setSettingsPanel('reading');
+
+  // Barra de ações do celular reutiliza exatamente os mesmos comandos do leitor.
+  if (mobileLibraryBtn) mobileLibraryBtn.addEventListener('click', () => openLibraryBtn.click());
+  if (mobileTocBtn) mobileTocBtn.addEventListener('click', () => openTocBtn?.click());
+  if (mobileBookmarkBtn) mobileBookmarkBtn.addEventListener('click', () => addBookmarkBtn?.click());
+  if (mobileSettingsBtn) mobileSettingsBtn.addEventListener('click', () => openSettingsBtn.click());
 
   // Sliders de Iluminação e Fonte
   if (subDimmerSlider) {
@@ -2176,6 +2207,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let books = await window.sereneStorage.getAllBooks();
+    const continueCard = document.getElementById('continue-reading-card');
+    if (continueCard) {
+      const recentBooks = [...books].sort((a, b) => (b.lastReadAt || 0) - (a.lastReadAt || 0));
+      const current = recentBooks.find((book) => book.id === state.currentBook?.id) || recentBooks[0];
+      if (current) {
+        const safeId = String(current.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        const title = escapeUI(current.title || 'Sem título');
+        const author = escapeUI(current.author || 'Autor desconhecido');
+        const cover = safeImageSource(current.cover);
+        const format = escapeUI((current.format || 'livro').toUpperCase());
+        const progress = Math.max(0, Math.min(100, Math.round((current.pagePercentage || 0) * 100)));
+        continueCard.classList.remove('hidden');
+        continueCard.innerHTML = `
+          <button type="button" onclick="window.selectBookFromLibrary('${safeId}')" class="w-full flex items-center gap-3 p-3 text-left active:scale-[0.99] transition" aria-label="Continuar lendo ${title}">
+            <span class="continue-reading-cover">
+              ${cover ? `<img src="${cover}" alt="Capa de ${title}" class="w-full h-full object-cover">` : `<span class="book-cover-fallback w-full h-full text-white flex items-center justify-center font-serif text-2xl">${title.charAt(0)}</span>`}
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-[9px] uppercase tracking-[0.16em] text-amber-700 dark:text-amber-400 font-bold">${progress > 0 ? 'Continuar lendo' : 'Começar a ler'}</span>
+              <strong class="block mt-1 font-serif text-base leading-tight truncate">${title}</strong>
+              <span class="block text-[10px] opacity-60 mt-1 truncate">${author} · ${format}</span>
+              <span class="block mt-2 h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden"><span class="block h-full bg-amber-500" style="width:${progress}%"></span></span>
+              <span class="block text-[9px] opacity-60 mt-1">${progress}% lido</span>
+            </span>
+            <span class="px-3 py-2 rounded-full bg-amber-600 text-white text-[10px] font-bold">Ler</span>
+          </button>`;
+      } else {
+        continueCard.classList.add('hidden');
+        continueCard.innerHTML = '';
+      }
+    }
 
     // Popular o filtro de etiquetas com todas as etiquetas existentes
     if (libraryTagFilter) {
@@ -2761,7 +2823,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.autoTheme) applyAutoTheme();
   // Aplicar i18n ao carregar (caso ainda não tenha sido aplicado)
   if (window.sereneI18n) window.sereneI18n.apply();
-  if (new URLSearchParams(location.search).get('action') === 'library') openLibraryBtn.click();
+  const requestedAction = new URLSearchParams(location.search).get('action');
+  if (requestedAction === 'library') {
+    openLibraryBtn.click();
+  } else {
+    // A biblioteca é a tela inicial na primeira visita desta nova experiência.
+    // Depois disso o app volta diretamente ao ponto em que o leitor parou.
+    const libraryHomeSeen = await window.sereneStorage.getPreference('library_home_seen_v1', false);
+    if (!libraryHomeSeen) {
+      openLibraryBtn.click();
+      await window.sereneStorage.savePreference('library_home_seen_v1', true);
+    }
+  }
 
   // --- Onboarding (primeira execução) ---
   (async function onboarding() {

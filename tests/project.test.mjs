@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v24/);
+  assert.match(worker, /serene-reader-v25/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
 
@@ -36,7 +36,7 @@ test('o pacote Android protege os dados locais e bloqueia HTTP aberto', async ()
   const gradle = await read('android/app/build.gradle');
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(manifest, /android:usesCleartextTraffic="false"/);
-  assert.match(gradle, /versionName "2\.0\.0"/);
+  assert.match(gradle, /versionName "2\.1\.0"/);
 });
 
 test('o PDF.js usa worker local e uma versão sem a falha conhecida antiga', async () => {
@@ -104,6 +104,22 @@ test('a biblioteca prioriza capas e mantém ferramentas recolhidas', async () =>
   assert.match(app, /cover: parsed\.cover \|\| dl\.cover/);
   assert.match(catalog, /getCoverUrl\(book\)/);
   assert.match(catalog, /_downloadCover\(url\)/);
+});
+
+test('a experiência móvel mantém navegação visível e organiza os ajustes', async () => {
+  const html = await read('index.html');
+  const styles = await read('css/styles.css');
+  const app = await read('js/app.js');
+
+  assert.match(html, /id="mobile-reader-tools"/);
+  assert.match(html, /id="continue-reading-card"/);
+  for (const panel of ['reading', 'audio', 'tools', 'app']) {
+    assert.match(html, new RegExp(`data-settings-tab="${panel}"`));
+  }
+  assert.match(styles, /height: 100dvh/);
+  assert.match(styles, /main \{[\s\S]*min-height: 0/);
+  assert.match(app, /library_home_seen_v1/);
+  assert.match(app, /setSettingsPanel/);
 });
 
 test('o PWA e o Android usam a nova identidade de livro aberto', async () => {

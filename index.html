@@ -139,6 +139,26 @@
     </div>
   </main>
 
+  <!-- Ações principais no celular: ficam ao alcance do polegar sem lotar o cabeçalho. -->
+  <nav id="mobile-reader-tools" class="reader-chrome sm:hidden z-20 shrink-0 grid grid-cols-4 border-t border-black/5 dark:border-white/5" aria-label="Ferramentas de leitura">
+    <button id="mobile-library-btn" class="mobile-reader-tool" type="button" aria-label="Abrir biblioteca">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21V5.5Zm16 0A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21V5.5Z"/></svg>
+      <span>Biblioteca</span>
+    </button>
+    <button id="mobile-toc-btn" class="mobile-reader-tool" type="button" aria-label="Abrir índice">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+      <span>Índice</span>
+    </button>
+    <button id="mobile-bookmark-btn" class="mobile-reader-tool" type="button" aria-label="Adicionar marcador">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3-6 3V4.5Z"/></svg>
+      <span>Marcar</span>
+    </button>
+    <button id="mobile-settings-btn" class="mobile-reader-tool" type="button" aria-label="Abrir ajustes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M10 14v6"/></svg>
+      <span>Ajustes</span>
+    </button>
+  </nav>
+
   <!-- Rodapé com Progresso e Botões -->
   <footer id="footer-bar" class="reader-chrome z-20 px-3 sm:px-6 py-2 shrink-0 flex items-center justify-between text-xs select-none border-t border-black/5 dark:border-white/5">
     <button id="prev-btn" class="p-2 sm:p-1 sm:px-2.5 rounded hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition flex items-center gap-1 font-medium min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 justify-center">
@@ -180,10 +200,17 @@
       </button>
     </div>
 
+    <nav id="settings-tabs" class="settings-tabs grid grid-cols-4 gap-1 p-2 border-b border-current/10" aria-label="Categorias de ajustes">
+      <button type="button" class="settings-tab is-active" data-settings-tab="reading">Leitura</button>
+      <button type="button" class="settings-tab" data-settings-tab="audio">Áudio</button>
+      <button type="button" class="settings-tab" data-settings-tab="tools">Recursos</button>
+      <button type="button" class="settings-tab" data-settings-tab="app">App</button>
+    </nav>
+
     <div class="settings-content flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
 
       <!-- Player Sintetizador de Voz (TTS) -->
-      <section class="tts-panel p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
+      <section data-settings-panel="audio" class="tts-panel p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
         <label class="block text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
           Sintetizador de Voz (TTS)
         </label>
@@ -255,7 +282,7 @@
       </section>
 
       <!-- Modos rápidos de leitura -->
-      <section class="reading-presets rounded-2xl border border-current/10 p-3.5">
+      <section data-settings-panel="reading" class="reading-presets rounded-2xl border border-current/10 p-3.5">
         <div class="flex items-start justify-between gap-3 mb-3">
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">Modo de leitura</label>
@@ -280,7 +307,7 @@
       </section>
 
       <!-- 1. Paletas de Cor -->
-      <section class="pt-2 border-t border-current/10">
+      <section data-settings-panel="reading" class="pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70 mb-2.5">
           Cores da página
         </label>
@@ -323,7 +350,7 @@
       </section>
 
       <!-- 2. Filtros de Iluminação -->
-      <section class="space-y-4 pt-2 border-t border-current/10">
+      <section data-settings-panel="reading" class="space-y-4 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           2. Iluminação Circadiana
         </label>
@@ -354,7 +381,7 @@
       </section>
 
       <!-- 3. Tipografia -->
-      <section class="space-y-4 pt-2 border-t border-current/10">
+      <section data-settings-panel="reading" class="space-y-4 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           3. Tipografia & Layout
         </label>
@@ -448,7 +475,7 @@
       <!-- Seção 4 movida para a Biblioteca -->
 
       <!-- 4. Marcadores do Livro -->
-      <section class="space-y-3 pt-2 border-t border-current/10">
+      <section data-settings-panel="tools" class="space-y-3 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           4. Marcadores Salvos
         </label>
@@ -468,7 +495,7 @@
       </section>
 
       <!-- 5. Modos de Leitura Avançados -->
-      <section class="space-y-3 pt-2 border-t border-current/10">
+      <section data-settings-panel="tools" class="space-y-3 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           5. Modos de Leitura Avançados
         </label>
@@ -497,7 +524,7 @@
       </section>
 
       <!-- 6. Notas do Livro -->
-      <section class="space-y-3 pt-2 border-t border-current/10">
+      <section data-settings-panel="tools" class="space-y-3 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           6. Notas do Livro
         </label>
@@ -505,7 +532,7 @@
       </section>
 
       <!-- 6.5 Meta de Leitura Diária -->
-      <section class="space-y-3 pt-2 border-t border-current/10">
+      <section data-settings-panel="tools" class="space-y-3 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           Meta Diária de Leitura
         </label>
@@ -517,7 +544,7 @@
       </section>
 
       <!-- Idioma -->
-      <section class="space-y-3 pt-2 border-t border-current/10">
+      <section data-settings-panel="app" class="space-y-3 pt-2 border-t border-current/10">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70">
           Idioma / Language / Idioma
         </label>
@@ -529,7 +556,7 @@
       </section>
 
       <!-- 7. Sincronização & Backup -->
-      <section class="space-y-3 pt-2 border-t border-current/10 pb-2">
+      <section data-settings-panel="app" class="space-y-3 pt-2 border-t border-current/10 pb-2">
         <label class="block text-xs font-semibold uppercase tracking-wider opacity-70" data-i18n="sync_backup">
           7. Sincronização & Backup
         </label>
@@ -546,7 +573,7 @@
         </div>
       </section>
 
-      <button id="reset-settings-btn" class="w-full py-2 px-3 mt-4 mb-4 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center justify-center gap-2 transition">
+      <button id="reset-settings-btn" data-settings-panel="app" class="w-full py-2 px-3 mt-4 mb-4 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center justify-center gap-2 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Restaurar Padrões
       </button>
@@ -583,8 +610,10 @@
       </div>
     </div>
     <div class="flex-1 overflow-y-auto p-4 no-scrollbar">
+      <section id="continue-reading-card" class="continue-reading-card hidden mb-5" aria-label="Continuar lendo"></section>
+
       <div class="flex items-center justify-between mb-3">
-        <h3 class="font-serif text-lg font-semibold">Sua estante</h3>
+        <h3 class="font-serif text-lg font-semibold">Todos os livros</h3>
         <span id="library-book-count" class="text-[10px] uppercase tracking-wider opacity-55">0 livros</span>
       </div>
 

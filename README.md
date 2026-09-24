@@ -6,6 +6,8 @@ Nenhum conteúdo de livro é enviado para servidores. Biblioteca, progresso, pre
 
 ## Experiência de leitura
 
+- Biblioteca como entrada na primeira execução, cartão **Continuar lendo** e navegação móvel pensada para uso com uma mão.
+- Ajustes separados em **Leitura**, **Áudio**, **Recursos** e **App**, sem uma lista única interminável.
 - Modos prontos **Conforto**, **Kindle**, **E-ink** e **Antes de dormir**, que ajustam cor, fonte, margem, espaçamento e navegação em um toque.
 - Paletas Kindle Branco, Papel Creme, E-ink, Sépia, Noite e OLED, além de tema automático, dimmer e filtro âmbar.
 - Leitura paginada ou por rolagem, modo imersivo, busca, índice de capítulos, progresso e estimativa de tempo.
@@ -93,6 +95,7 @@ Os testes manuais legados continuam disponíveis em `tests/test.html`. `npm audi
 
 ## Roadmap
 
+- Consulte a [auditoria de produto e comparação com o eBoox](docs/LEITOR_COMPLETO.md) para a matriz completa de recursos e prioridades.
 - Sincronização opcional entre dispositivos com criptografia ponta a ponta.
 - Layout de duas páginas lado a lado para tablets e monitores largos.
 - Processamento de parsers pesados em Web Workers.
