@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v28/);
+  assert.match(worker, /serene-reader-v29/);
   assert.match(worker, /isMutableAsset/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
@@ -37,7 +37,7 @@ test('o pacote Android protege os dados locais e bloqueia HTTP aberto', async ()
   const gradle = await read('android/app/build.gradle');
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(manifest, /android:usesCleartextTraffic="false"/);
-  assert.match(gradle, /versionName "2\.2\.0"/);
+  assert.match(gradle, /versionName "2\.2\.1"/);
 });
 
 test('o PDF.js usa worker local e uma versão sem a falha conhecida antiga', async () => {
@@ -125,7 +125,7 @@ test('a experiência móvel mantém navegação visível e organiza os ajustes',
   assert.match(app, /setSettingsPanel/);
   assert.match(app, /movedLines/);
   assert.match(pagination, /isVerse/);
-  assert.match(html, /pagination\.js\?v=2\.2\.0/);
+  assert.match(html, /pagination\.js\?v=2\.2\.1/);
 });
 
 test('o PWA e o Android usam a nova identidade de livro aberto', async () => {
@@ -157,4 +157,18 @@ test('EPUBs grandes usam capítulos sob demanda e paginação cooperativa', asyn
   assert.match(storage, /const DB_VERSION = 3/);
   assert.match(storage, /bookFiles/);
   assert.match(storage, /chapters: Array\.isArray\(bookData\.chapters\)/);
+});
+
+test('o índice permite mapear, buscar e pular diretamente para capítulos', async () => {
+  const html = await read('index.html');
+  const app = await read('js/app.js');
+
+  assert.match(html, /id="toc-current-label"/);
+  assert.match(html, /id="toc-jump-input"/);
+  assert.match(html, /id="toc-search-input"/);
+  assert.match(html, /id="toc-prev-chapter"/);
+  assert.match(html, /id="toc-next-chapter"/);
+  assert.match(app, /window\.jumpToChapter/);
+  assert.match(app, /normalize\('NFD'\)/);
+  assert.match(app, /Cap\. \$\{state\.currentChapter \+ 1\}/);
 });

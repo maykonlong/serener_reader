@@ -241,6 +241,31 @@ main {
   z-index: 60 !important;
 }
 
+.toc-step-btn {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 0.75rem;
+  font-weight: 700;
+  transition: background-color 140ms ease, opacity 140ms ease, transform 140ms ease;
+}
+
+.toc-step-btn:not(:disabled):hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.toc-step-btn:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.toc-step-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* Animação ultra-suave de virada de página */
 .page-fade {
   transition: opacity 100ms ease-out, transform 100ms ease-out;

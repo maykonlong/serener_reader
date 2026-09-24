@@ -17,9 +17,9 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <!-- Dependências locais: o leitor inicia e abre livros sem conexão. -->
-  <link rel="stylesheet" href="css/tailwind.css?v=2.2.0">
+  <link rel="stylesheet" href="css/tailwind.css?v=2.2.1">
   <link rel="stylesheet" href="css/fonts.css">
-  <link rel="stylesheet" href="css/styles.css?v=2.2.0">
+  <link rel="stylesheet" href="css/styles.css?v=2.2.1">
   <script src="vendor/jszip.min.js"></script>
   <script src="vendor/readability.js"></script>
   <script src="vendor/marked.min.js"></script>
@@ -678,7 +678,29 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar" id="toc-list">
+    <div id="toc-navigator" class="p-4 border-b border-current/10 space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-[9px] uppercase tracking-[0.16em] opacity-55 font-bold">Você está em</p>
+          <p id="toc-current-label" class="text-xs font-semibold truncate">Sem capítulo selecionado</p>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button id="toc-prev-chapter" type="button" class="toc-step-btn" aria-label="Capítulo anterior" title="Capítulo anterior">←</button>
+          <button id="toc-next-chapter" type="button" class="toc-step-btn" aria-label="Próximo capítulo" title="Próximo capítulo">→</button>
+        </div>
+      </div>
+      <form id="toc-jump-form" class="flex items-center gap-2">
+        <label for="toc-jump-input" class="sr-only">Número do capítulo</label>
+        <input id="toc-jump-input" type="number" min="1" inputmode="numeric" placeholder="Nº do capítulo" class="min-w-0 flex-1 rounded-xl border border-current/15 bg-transparent px-3 py-2.5 text-xs outline-none focus:ring-2 focus:ring-amber-500/40">
+        <button id="toc-jump-btn" type="submit" class="rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-bold text-white active:scale-95 transition disabled:opacity-35 disabled:cursor-not-allowed">Ir</button>
+      </form>
+      <label class="relative block">
+        <span class="sr-only">Buscar capítulo pelo nome</span>
+        <input id="toc-search-input" type="search" placeholder="Buscar capítulo pelo nome…" autocomplete="off" class="w-full rounded-xl border border-current/15 bg-transparent pl-9 pr-3 py-2.5 text-xs outline-none focus:ring-2 focus:ring-amber-500/40">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+      </label>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar" id="toc-list" aria-live="polite">
       <!-- Lista de Capítulos -->
     </div>
   </aside>
@@ -788,21 +810,21 @@
   </div>
 
   <!-- Scripts do SereneReader -->
-  <script src="js/storage.js?v=2.2.0"></script>
-  <script src="js/pagination.js?v=2.2.0"></script>
-  <script src="js/epub_parser.js?v=2.2.0"></script>
-  <script src="js/pdf_reader.js?v=2.2.0"></script>
-  <script src="js/format_parsers.js?v=2.2.0"></script>
-  <script src="js/url_reader.js?v=2.2.0"></script>
-  <script src="js/reading_modes.js?v=2.2.0"></script>
-  <script src="js/annotations.js?v=2.2.0"></script>
-  <script src="js/sync_engine.js?v=2.2.0"></script>
-  <script src="js/tts_engine.js?v=2.2.0"></script>
-  <script src="js/ambient.js?v=2.2.0"></script>
-  <script src="js/stats.js?v=2.2.0"></script>
-  <script src="js/catalog.js?v=2.2.0"></script>
-  <script src="js/i18n.js?v=2.2.0"></script>
-  <script src="js/app.js?v=2.2.0"></script>
+  <script src="js/storage.js?v=2.2.1"></script>
+  <script src="js/pagination.js?v=2.2.1"></script>
+  <script src="js/epub_parser.js?v=2.2.1"></script>
+  <script src="js/pdf_reader.js?v=2.2.1"></script>
+  <script src="js/format_parsers.js?v=2.2.1"></script>
+  <script src="js/url_reader.js?v=2.2.1"></script>
+  <script src="js/reading_modes.js?v=2.2.1"></script>
+  <script src="js/annotations.js?v=2.2.1"></script>
+  <script src="js/sync_engine.js?v=2.2.1"></script>
+  <script src="js/tts_engine.js?v=2.2.1"></script>
+  <script src="js/ambient.js?v=2.2.1"></script>
+  <script src="js/stats.js?v=2.2.1"></script>
+  <script src="js/catalog.js?v=2.2.1"></script>
+  <script src="js/i18n.js?v=2.2.1"></script>
+  <script src="js/app.js?v=2.2.1"></script>
 
   <!-- Registro do Service Worker PWA -->
   <script>

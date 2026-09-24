@@ -10,7 +10,7 @@ Nenhum conteúdo de livro é enviado para servidores. Biblioteca, progresso, pre
 - Ajustes separados em **Leitura**, **Áudio**, **Recursos** e **App**, sem uma lista única interminável.
 - Modos prontos **Conforto**, **Kindle**, **E-ink** e **Antes de dormir**, que ajustam cor, fonte, margem, espaçamento e navegação em um toque.
 - Paletas Kindle Branco, Papel Creme, E-ink, Sépia, Noite e OLED, além de tema automático, dimmer e filtro âmbar.
-- Leitura paginada ou por rolagem, modo imersivo, busca, índice de capítulos, progresso e estimativa de tempo.
+- Leitura paginada ou por rolagem, modo imersivo, busca, índice com pesquisa e salto direto para qualquer capítulo, progresso e estimativa de tempo.
 - Fontes Literata, Lora, Merriweather, Atkinson Hyperlegible, Lexend, Vollkorn e OpenDyslexic empacotadas localmente.
 - Ajuste de tamanho, entrelinha, parágrafos, largura, alinhamento e transição de página.
 - TTS com vozes do sistema, leitura contínua, sleep timer e destaque palavra a palavra.

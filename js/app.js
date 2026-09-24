@@ -156,6 +156,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const closeLibraryBtn = document.getElementById('close-library-btn');
   const openTocBtn = document.getElementById('open-toc-btn');
   const closeTocBtn = document.getElementById('close-toc-btn');
+  const tocCurrentLabel = document.getElementById('toc-current-label');
+  const tocJumpForm = document.getElementById('toc-jump-form');
+  const tocJumpInput = document.getElementById('toc-jump-input');
+  const tocJumpBtn = document.getElementById('toc-jump-btn');
+  const tocSearchInput = document.getElementById('toc-search-input');
+  const tocPrevChapterBtn = document.getElementById('toc-prev-chapter');
+  const tocNextChapterBtn = document.getElementById('toc-next-chapter');
 
   const subDimmerSlider = document.getElementById('sub-dimmer-slider');
   const subDimmerVal = document.getElementById('sub-dimmer-val');
@@ -440,7 +447,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function openBook(book) {
     book = await optimizeLegacyEpub(book);
-    if (state.currentBook?.id !== book.id || state.currentBook?.addedAt !== book.addedAt) pageCache.clear();
+    if (state.currentBook?.id !== book.id || state.currentBook?.addedAt !== book.addedAt) {
+      pageCache.clear();
+      if (tocSearchInput) tocSearchInput.value = '';
+    }
     state.currentBook = book;
     
     // Load notes
@@ -736,7 +746,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         nextBtn.style.display = 'flex';
       }
       
-      pageCounterTextEl.textContent = `Página ${currentNum} de ${total}`;
+      const chapterCount = state.currentBook?.chapters?.length || 0;
+      pageCounterTextEl.textContent = chapterCount > 0
+        ? `Cap. ${state.currentChapter + 1}/${chapterCount} · Pág. ${currentNum}/${total}`
+        : `Página ${currentNum} de ${total}`;
       
       const progressPercent = total > 1 ? ((currentNum - 1) / (total - 1)) * 100 : 100;
       progressBarFillEl.style.width = `${progressPercent}%`;
@@ -1188,6 +1201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (openTocBtn) openTocBtn.addEventListener('click', (e) => {
     e.stopPropagation();
+    renderTocDrawer();
     openDrawer(tocDrawer, tocBackdrop);
   });
   if (closeTocBtn) closeTocBtn.addEventListener('click', (e) => {
@@ -2577,22 +2591,61 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (state.currentBook && state.currentBook.chapters && state.currentBook.chapters.length > 0) {
       const chapters = state.currentBook.chapters;
-      const batchSize = 120;
-      const defaultStart = Math.max(0, Math.min(chapters.length - batchSize, state.currentChapter - Math.floor(batchSize / 2)));
-      const start = Math.max(0, Math.min(chapters.length - 1, requestedStart === null ? defaultStart : requestedStart));
-      const end = Math.min(chapters.length, start + batchSize);
-      const items = chapters.slice(start, end).map((ch, offset) => {
-        const idx = start + offset;
+      const currentTitle = chapters[state.currentChapter]?.title || `Capítulo ${state.currentChapter + 1}`;
+      if (tocCurrentLabel) tocCurrentLabel.textContent = `Capítulo ${state.currentChapter + 1} de ${chapters.length} · ${currentTitle}`;
+      if (tocJumpInput) {
+        tocJumpInput.disabled = false;
+        tocJumpInput.max = String(chapters.length);
+        tocJumpInput.placeholder = `1 a ${chapters.length}`;
+        if (document.activeElement !== tocJumpInput) tocJumpInput.value = String(state.currentChapter + 1);
+      }
+      if (tocJumpBtn) tocJumpBtn.disabled = false;
+      if (tocSearchInput) tocSearchInput.disabled = false;
+      if (tocPrevChapterBtn) tocPrevChapterBtn.disabled = state.currentChapter <= 0;
+      if (tocNextChapterBtn) tocNextChapterBtn.disabled = state.currentChapter >= chapters.length - 1;
+
+      const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const query = normalize(tocSearchInput?.value);
+      const entries = chapters
+        .map((chapter, index) => ({ chapter, index }))
+        .filter(({ chapter, index }) => !query || normalize(chapter.title).includes(query) || String(index + 1) === query);
+
+      if (!entries.length) {
+        tocListEl.innerHTML = '<div class="py-8 text-center"><p class="text-sm font-semibold">Nenhum capítulo encontrado</p><p class="mt-1 text-xs opacity-55">Tente outro nome ou digite o número acima.</p></div>';
+        return;
+      }
+
+      const batchSize = 100;
+      const currentEntryPosition = Math.max(0, entries.findIndex(entry => entry.index === state.currentChapter));
+      const defaultStart = query ? 0 : Math.max(0, Math.min(entries.length - batchSize, currentEntryPosition - Math.floor(batchSize / 2)));
+      const start = Math.max(0, Math.min(entries.length - 1, requestedStart === null ? defaultStart : requestedStart));
+      const end = Math.min(entries.length, start + batchSize);
+      const items = entries.slice(start, end).map(({ chapter, index }) => {
+        const title = chapter.title || `Capítulo ${index + 1}`;
         return `
-        <button class="w-full text-left p-2.5 rounded-lg border border-current/10 hover:bg-amber-500/10 text-xs font-medium truncate ${idx === state.currentChapter ? 'bg-amber-500/20 font-bold' : ''}" onclick="window.selectChapter(${idx})">
-          ${escapeUI(ch.title || `Capítulo ${idx + 1}`)}
+        <button class="w-full text-left p-2.5 rounded-xl border border-current/10 hover:bg-amber-500/10 text-xs transition flex items-center gap-3 ${index === state.currentChapter ? 'bg-amber-500/20 border-amber-600/30 font-bold' : ''}" onclick="window.selectChapter(${index})" aria-current="${index === state.currentChapter ? 'location' : 'false'}">
+          <span class="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center shrink-0 text-[10px] font-mono opacity-70">${index + 1}</span>
+          <span class="min-w-0 flex-1 truncate">${escapeUI(title)}</span>
+          ${index === state.currentChapter ? '<span class="text-[9px] uppercase tracking-wide text-amber-700 dark:text-amber-300">Atual</span>' : ''}
         </button>
       `;
       }).join('');
       const before = start > 0 ? `<button class="w-full p-2 text-xs font-bold rounded-lg border border-current/15" onclick="window.renderTocRange(${Math.max(0, start - batchSize)})">↑ Mostrar capítulos anteriores</button>` : '';
-      const after = end < chapters.length ? `<button class="w-full p-2 text-xs font-bold rounded-lg border border-current/15" onclick="window.renderTocRange(${end})">Mostrar próximos capítulos ↓</button>` : '';
-      tocListEl.innerHTML = `<p class="text-[11px] opacity-60 px-1">Capítulos ${start + 1}–${end} de ${chapters.length}</p>${before}${items}${after}`;
+      const after = end < entries.length ? `<button class="w-full p-2 text-xs font-bold rounded-lg border border-current/15" onclick="window.renderTocRange(${end})">Mostrar próximos capítulos ↓</button>` : '';
+      const summary = query
+        ? `${entries.length} ${entries.length === 1 ? 'resultado' : 'resultados'}`
+        : `Capítulos ${entries[start].index + 1}–${entries[end - 1].index + 1} de ${chapters.length}`;
+      tocListEl.innerHTML = `<p class="text-[11px] opacity-60 px-1">${summary}</p>${before}${items}${after}`;
     } else {
+      if (tocCurrentLabel) tocCurrentLabel.textContent = 'Livro sem capítulos mapeados';
+      if (tocJumpInput) {
+        tocJumpInput.value = '';
+        tocJumpInput.disabled = true;
+      }
+      if (tocJumpBtn) tocJumpBtn.disabled = true;
+      if (tocSearchInput) tocSearchInput.disabled = true;
+      if (tocPrevChapterBtn) tocPrevChapterBtn.disabled = true;
+      if (tocNextChapterBtn) tocNextChapterBtn.disabled = true;
       tocListEl.innerHTML = '<p class="text-xs opacity-50 italic">Este livro não possui divisões de capítulos separadas.</p>';
     }
   }
@@ -2601,11 +2654,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   window.selectChapter = async (idx) => {
     if (state.isPaginating) return;
-    state.currentChapter = idx;
+    const totalChapters = state.currentBook?.chapters?.length || 0;
+    if (!totalChapters) return;
+    state.currentChapter = Math.max(0, Math.min(totalChapters - 1, Number(idx) || 0));
     state.currentPage = 0;
     await paginateAndRender(false, false, 'start');
     if (tocDrawer && tocBackdrop) closeDrawer(tocDrawer, tocBackdrop, true);
   };
+
+  window.jumpToChapter = async (chapterNumber) => {
+    const totalChapters = state.currentBook?.chapters?.length || 0;
+    const requested = Number.parseInt(chapterNumber, 10);
+    if (!Number.isInteger(requested) || requested < 1 || requested > totalChapters) {
+      showToast(`Escolha um capítulo entre 1 e ${totalChapters}.`, 'warning');
+      tocJumpInput?.focus();
+      return;
+    }
+    await window.selectChapter(requested - 1);
+  };
+
+  if (tocJumpForm) {
+    tocJumpForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      window.jumpToChapter(tocJumpInput?.value);
+    });
+  }
+  if (tocSearchInput) {
+    tocSearchInput.addEventListener('input', () => renderTocDrawer(0));
+  }
+  if (tocPrevChapterBtn) {
+    tocPrevChapterBtn.addEventListener('click', () => window.selectChapter(state.currentChapter - 1));
+  }
+  if (tocNextChapterBtn) {
+    tocNextChapterBtn.addEventListener('click', () => window.selectChapter(state.currentChapter + 1));
+  }
 
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
