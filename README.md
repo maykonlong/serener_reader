@@ -19,6 +19,7 @@ Nenhum conteúdo de livro é enviado para servidores. Biblioteca, progresso, pre
 ## Biblioteca e formatos
 
 - Importação em lote de EPUB, PDF, TXT, Markdown, DOCX, CBZ e FB2.
+- EPUBs grandes usam índice leve, carregamento sob demanda do capítulo atual, paginação cooperativa e cache curto; o arquivo compactado não é duplicado na memória.
 - Capas e imagens internas preservadas localmente.
 - OCR offline em português e inglês para PDFs escaneados.
 - Busca e ordenação da biblioteca, etiquetas, avaliação, estado de leitura e estatísticas.
@@ -56,6 +57,8 @@ npm run android:open
 Para compilar localmente, instale Android Studio, JDK 21 e Android SDK 36. O APK de teste pode ser criado no Android Studio ou, dentro de `android/`, com `gradlew assembleDebug` no Windows e `./gradlew assembleDebug` no macOS/Linux.
 
 O app usa o seletor de arquivos do sistema, não pede acesso amplo ao armazenamento, bloqueia HTTP sem criptografia e não inclui a biblioteca do usuário no backup do Android.
+
+Na versão 2.2, arquivos EPUB/PDF ficam separados dos metadados no IndexedDB. Salvar progresso, nota ou avaliação não regrava o arquivo inteiro a cada página.
 
 ## PWA
 

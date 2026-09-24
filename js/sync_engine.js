@@ -8,7 +8,7 @@ class SereneSyncEngine {
 
   async exportBackup() {
     try {
-      const books = await window.sereneStorage.getAllBooks();
+      const books = await window.sereneStorage.getAllBooks(true);
       
       const backupData = {
         version: 1,
@@ -70,6 +70,8 @@ class SereneSyncEngine {
             if (typeof book.cover === 'string' && book.cover.startsWith('b64:')) {
               book.cover = this._base64ToArrayBuffer(book.cover.substring(4));
             }
+            // O arquivo precisa ser criado novamente neste banco restaurado.
+            book.hasExternalContent = false;
             
             await window.sereneStorage.saveBook(book); // Atualiza ou insere
           }

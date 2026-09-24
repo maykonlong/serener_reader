@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'SereneDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 class SereneStorage {
   constructor() {
@@ -27,6 +27,12 @@ class SereneStorage {
           booksStore.createIndex('lastReadAt', 'lastReadAt', { unique: false });
         }
 
+        // Arquivos binários ficam separados dos metadados. Assim, virar uma
+        // página não clona novamente um EPUB/PDF de dezenas de megabytes.
+        if (!db.objectStoreNames.contains('bookFiles')) {
+          db.createObjectStore('bookFiles', { keyPath: 'id' });
+        }
+
         // Tabela de Preferências do Usuário
         if (!db.objectStoreNames.contains('preferences')) {
           db.createObjectStore('preferences', { keyPath: 'key' });
@@ -42,6 +48,25 @@ class SereneStorage {
         if (!db.objectStoreNames.contains('highlights')) {
           const highlightStore = db.createObjectStore('highlights', { keyPath: 'id', autoIncrement: true });
           highlightStore.createIndex('bookId', 'bookId', { unique: false });
+        }
+
+        // Migração transparente dos PDFs/EPUBs binários das versões anteriores.
+        if (event.oldVersion > 0 && event.oldVersion < 3 && db.objectStoreNames.contains('books')) {
+          const tx = event.target.transaction;
+          const booksStore = tx.objectStore('books');
+          const filesStore = tx.objectStore('bookFiles');
+          booksStore.openCursor().onsuccess = (cursorEvent) => {
+            const cursor = cursorEvent.target.result;
+            if (!cursor) return;
+            const book = cursor.value;
+            if (book.content instanceof ArrayBuffer || book.content instanceof Blob) {
+              filesStore.put({ id: book.id, content: book.content });
+              book.content = null;
+              book.hasExternalContent = true;
+              cursor.update(book);
+            }
+            cursor.continue();
+          };
         }
       };
 
@@ -66,47 +91,69 @@ class SereneStorage {
   async saveBook(bookData) {
     await this.ready();
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('books', 'readwrite');
+      const tx = this.db.transaction(['books', 'bookFiles'], 'readwrite');
       const store = tx.objectStore('books');
+      const filesStore = tx.objectStore('bookFiles');
+      const isBinary = bookData.content instanceof ArrayBuffer || bookData.content instanceof Blob;
+      const id = bookData.id || `book_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       const bookToSave = {
-        id: bookData.id || `book_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id,
         title: bookData.title || 'Livro Sem Título',
         author: bookData.author || 'Autor Desconhecido',
         format: bookData.format || 'txt',
-        content: bookData.content, // String (txt) ou ArrayBuffer/Blob (epub/pdf)
+        content: isBinary ? null : (bookData.content ?? ''),
+        hasExternalContent: isBinary || Boolean(bookData.hasExternalContent),
         cover: bookData.cover || null,
         contentType: bookData.contentType || (bookData.format === 'txt' ? 'text' : 'html'),
         addedAt: bookData.addedAt || Date.now(),
         lastReadAt: bookData.lastReadAt || Date.now(),
         currentPage: bookData.currentPage || 0,
         currentChapter: bookData.currentChapter || 0,
+        scrollPosition: bookData.scrollPosition || 0,
+        pagePercentage: bookData.pagePercentage || 0,
         toc: bookData.toc || [],
+        chapters: Array.isArray(bookData.chapters) ? bookData.chapters : [],
+        epubLazy: Boolean(bookData.epubLazy),
+        notes: bookData.notes || '',
+        sourceSize: bookData.sourceSize || 0,
         rating: bookData.rating || 0,      // 0-5 estrelas
         status: bookData.status || 'unread', // 'unread' | 'reading' | 'finished'
         tags: Array.isArray(bookData.tags) ? bookData.tags : []
       };
 
-      const request = store.put(bookToSave);
-      request.onsuccess = () => resolve(bookToSave);
-      request.onerror = (e) => reject(e.target.error);
+      // Em edições de notas/detalhes o arquivo já existe e não precisa ser regravado.
+      if (isBinary && !bookData.hasExternalContent) filesStore.put({ id, content: bookData.content });
+      store.put(bookToSave);
+      tx.oncomplete = () => resolve({ ...bookToSave, content: isBinary ? bookData.content : bookToSave.content });
+      tx.onerror = (e) => reject(e.target.error);
+      tx.onabort = (e) => reject(e.target.error || tx.error);
     });
   }
 
   async getBook(id) {
     await this.ready();
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('books', 'readonly');
+      const tx = this.db.transaction(['books', 'bookFiles'], 'readonly');
       const store = tx.objectStore('books');
       const request = store.get(id);
-      request.onsuccess = () => resolve(request.result || null);
+      request.onsuccess = () => {
+        const book = request.result || null;
+        if (!book || !book.hasExternalContent) {
+          resolve(book);
+          return;
+        }
+        const fileRequest = tx.objectStore('bookFiles').get(id);
+        fileRequest.onsuccess = () => resolve({ ...book, content: fileRequest.result?.content || null });
+        fileRequest.onerror = (e) => reject(e.target.error);
+      };
       request.onerror = (e) => reject(e.target.error);
     });
   }
 
-  async getAllBooks() {
+  async getAllBooks(includeContent = false) {
     await this.ready();
-    return new Promise((resolve, reject) => {
+    const books = await new Promise((resolve, reject) => {
       const tx = this.db.transaction('books', 'readonly');
       const store = tx.objectStore('books');
       const request = store.getAll();
@@ -118,37 +165,45 @@ class SereneStorage {
       };
       request.onerror = (e) => reject(e.target.error);
     });
+    if (!includeContent) return books;
+    return Promise.all(books.map(book => this.getBook(book.id)));
   }
 
   async updateProgress(bookId, currentPage, currentChapter = 0, scrollPosition = 0, pagePercentage = 0) {
     await this.ready();
-    const book = await this.getBook(bookId);
-    if (!book) return;
-
-    book.currentPage = currentPage;
-    book.currentChapter = currentChapter;
-    book.scrollPosition = scrollPosition;
-    book.pagePercentage = pagePercentage;
-    book.lastReadAt = Date.now();
-
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('books', 'readwrite');
       const store = tx.objectStore('books');
-      const request = store.put(book);
-      request.onsuccess = () => resolve(book);
-      request.onerror = (e) => reject(e.target.error);
+      const getRequest = store.get(bookId);
+      getRequest.onsuccess = () => {
+        const book = getRequest.result;
+        if (!book) {
+          resolve(null);
+          return;
+        }
+        book.currentPage = currentPage;
+        book.currentChapter = currentChapter;
+        book.scrollPosition = scrollPosition;
+        book.pagePercentage = pagePercentage;
+        book.lastReadAt = Date.now();
+        const putRequest = store.put(book);
+        putRequest.onsuccess = () => resolve(book);
+        putRequest.onerror = (e) => reject(e.target.error);
+      };
+      getRequest.onerror = (e) => reject(e.target.error);
     });
   }
 
   async deleteBook(id) {
     await this.ready();
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(['books', 'bookmarks', 'highlights'], 'readwrite');
+      const tx = this.db.transaction(['books', 'bookFiles', 'bookmarks', 'highlights'], 'readwrite');
       const bookStore = tx.objectStore('books');
       const bookmarkStore = tx.objectStore('bookmarks');
       const highlightStore = tx.objectStore('highlights');
 
       bookStore.delete(id);
+      tx.objectStore('bookFiles').delete(id);
 
       // Deletar marcadores associados
       const bmIndex = bookmarkStore.index('bookId');

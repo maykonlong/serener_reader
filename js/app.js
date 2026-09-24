@@ -121,8 +121,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     navDirection: 1, // 1 = próxima, -1 = anterior
     chapterWordCount: 0,
     bookWordCount: 0,
-    activePreset: 'comfort'
+    activePreset: 'comfort',
+    isPaginating: false
   };
+
+  // Cache curto: voltar ao capítulo anterior é instantâneo sem reter o livro inteiro renderizado.
+  const pageCache = new Map();
+  const PAGE_CACHE_LIMIT = 6;
+  let paginationRunId = 0;
+  let renderRunId = 0;
 
   // --- Elementos da DOM ---
   const root = document.getElementById('reader-root');
@@ -403,7 +410,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Abertura de Livro (TXT, EPUB, PDF) ---
+  async function optimizeLegacyEpub(book) {
+    if (book?.format !== 'epub' || (book.chapters && book.chapters.length) || typeof book.content !== 'string' || book.content.length < 90000) {
+      return book;
+    }
+
+    renderRunId++;
+    pageContentEl.setAttribute('aria-busy', 'true');
+    pageContentEl.innerHTML = '<div class="h-full flex flex-col items-center justify-center text-center gap-3 opacity-70"><div style="width:28px;height:28px;border:3px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></div><p class="text-sm font-semibold">Organizando este EPUB antigo em capítulos leves…</p></div>';
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const chapters = await window.sereneEPUBParser.splitLegacyText(book.content);
+    if (chapters.length < 2) return book;
+
+    const optimized = {
+      ...book,
+      content: '',
+      contentType: 'text',
+      chapters,
+      toc: chapters.map((chapter, index) => ({ index, title: chapter.title })),
+      epubLazy: false,
+      currentPage: 0,
+      currentChapter: 0,
+      pagePercentage: 0
+    };
+    const saved = await window.sereneStorage.saveBook(optimized);
+    showToast(`EPUB reorganizado em ${chapters.length} partes para leitura fluida.`, 'success');
+    return saved;
+  }
+
   async function openBook(book) {
+    book = await optimizeLegacyEpub(book);
+    if (state.currentBook?.id !== book.id || state.currentBook?.addedAt !== book.addedAt) pageCache.clear();
     state.currentBook = book;
     
     // Load notes
@@ -412,7 +449,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     state.currentPage = book.currentPage || 0;
-    state.currentChapter = book.currentChapter || 0;
+    state.currentChapter = Math.min(book.currentChapter || 0, Math.max(0, (book.chapters?.length || 1) - 1));
     state.isPdfMode = book.format === 'pdf';
 
     headerBookNameEl.textContent = book.title || 'Sem Título';
@@ -432,7 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Erro ao carregar PDF: ' + err.message, 'error');
       }
     } else {
-      paginateAndRender(true);
+      await paginateAndRender(true, false);
     }
 
     renderTocDrawer();
@@ -442,69 +479,127 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Paginação e Renderização ---
-  function paginateAndRender(isInitialLoad = false) {
-    if (!state.currentBook) return;
+  function paginationCacheKey() {
+    const rect = readingContainerEl.getBoundingClientRect();
+    return [
+      state.currentBook?.id, state.currentChapter, state.readingMode,
+      Math.round(rect.width), Math.round(rect.height), state.fontFamily, state.fontSize,
+      state.maxWidthClass, state.lineHeight, state.paragraphSpacing, state.textAlign, state.indent
+    ].join('|');
+  }
 
-    let percentage = 0;
-    if (!isInitialLoad && state.pages && state.pages.length > 0) {
-       percentage = state.currentPage / state.pages.length;
-    }
+  function getCachedPages(key) {
+    const cached = pageCache.get(key);
+    if (!cached) return null;
+    pageCache.delete(key);
+    pageCache.set(key, cached);
+    return cached;
+  }
 
-    let textToPaginate = '';
+  function cachePages(key, value) {
+    pageCache.set(key, value);
+    while (pageCache.size > PAGE_CACHE_LIMIT) pageCache.delete(pageCache.keys().next().value);
+  }
+
+  function showPaginationLoading(label = 'Preparando capítulo…') {
+    renderRunId++;
+    state.isPaginating = true;
+    pageContentEl.setAttribute('aria-busy', 'true');
+    pageContentEl.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center gap-3 opacity-70"><div style="width:28px;height:28px;border:3px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></div><p class="text-sm font-semibold">${label}</p><p class="text-xs opacity-70">O app continua responsivo enquanto organiza somente esta parte.</p></div>`;
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+  }
+
+  async function currentChapterContent() {
     let contentType = state.currentBook.contentType || 'text';
-    if (state.currentBook.chapters && state.currentBook.chapters.length > 0) {
-      const chapter = state.currentBook.chapters[state.currentChapter] || state.currentBook.chapters[0];
-      textToPaginate = chapter.content;
-      if (chapter.contentType) contentType = chapter.contentType;
-    } else {
-      textToPaginate = state.currentBook.content || '';
+    const chapters = state.currentBook.chapters || [];
+    if (!chapters.length) return { text: state.currentBook.content || '', contentType };
+
+    const chapter = chapters[state.currentChapter] || chapters[0];
+    if (state.currentBook.epubLazy && chapter.lazy && chapter.href) {
+      const loaded = await window.sereneEPUBParser.loadChapter(state.currentBook.content, chapter);
+      if (/^Capítulo \d+$/.test(chapter.title || '') && loaded.title) chapter.title = loaded.title;
+      return { text: loaded.content || '', contentType: loaded.contentType || 'html' };
     }
+    return { text: chapter.content || '', contentType: chapter.contentType || contentType };
+  }
 
-    // Contagem de palavras do capítulo atual para a estimativa de tempo restante
-    state.chapterWordCount = (textToPaginate.replace(/<[^>]*>/g, ' ').match(/[\wÀ-ÿ'-]+/g) || []).length;
+  async function paginateAndRender(isInitialLoad = false, preservePosition = true, target = 'start') {
+    if (!state.currentBook) return;
+    if (state.isPdfMode) {
+      state.pages = new Array(window.serenePDFReader.numPages).fill('');
+      state.currentPage = Math.min(state.currentPage, Math.max(0, state.pages.length - 1));
+      renderCurrentPage();
+      return;
+    }
+    const runId = ++paginationRunId;
+    const bookId = state.currentBook.id;
+    const percentage = preservePosition && state.pages?.length ? state.currentPage / state.pages.length : 0;
+    const cacheKey = paginationCacheKey();
+    showPaginationLoading(state.currentBook.epubLazy ? 'Abrindo apenas o capítulo atual…' : 'Preparando capítulo…');
+    await new Promise(resolve => requestAnimationFrame(resolve));
 
-    const paginateOptions = {
-      fontFamily: state.fontFamily,
-      fontSize: state.fontSize,
-      maxWidthClass: state.maxWidthClass,
-      lineHeight: state.lineHeight,
-      paragraphSpacing: state.paragraphSpacing,
-      textAlign: state.textAlign,
-      indent: state.indent
-    };
-
-    state.pages = [];
-    if (state.readingMode === 'scroll') {
-      if (state.isPdfMode) {
-        state.pages = new Array(window.serenePDFReader.numPages).fill('');
+    try {
+      const cached = getCachedPages(cacheKey);
+      if (cached) {
+        state.pages = cached.pages;
+        state.chapterWordCount = cached.wordCount;
       } else {
-        // No modo scroll contínuo, a "página" é o texto/capítulo inteiro
-        state.pages = [textToPaginate];
+        const { text: textToPaginate, contentType } = await currentChapterContent();
+        if (runId !== paginationRunId || state.currentBook?.id !== bookId) return;
+        state.chapterWordCount = (String(textToPaginate).replace(/<[^>]*>/g, ' ').match(/[\wÀ-ÿ'-]+/g) || []).length;
+        const paginateOptions = {
+          fontFamily: state.fontFamily,
+          fontSize: state.fontSize,
+          maxWidthClass: state.maxWidthClass,
+          lineHeight: state.lineHeight,
+          paragraphSpacing: state.paragraphSpacing,
+          textAlign: state.textAlign,
+          indent: state.indent
+        };
+
+        if (state.readingMode === 'scroll') {
+          state.pages = [textToPaginate];
+        } else if (contentType === 'html') {
+          state.pages = await window.serenePaginator.paginateHtmlAsync(
+            textToPaginate,
+            readingContainerEl,
+            paginateOptions,
+            () => runId !== paginationRunId
+          );
+        } else {
+          state.pages = await window.serenePaginator.paginateAsync(
+            textToPaginate,
+            readingContainerEl,
+            paginateOptions,
+            () => runId !== paginationRunId
+          );
+        }
+        if (runId !== paginationRunId || state.currentBook?.id !== bookId) return;
+        cachePages(cacheKey, { pages: state.pages, wordCount: state.chapterWordCount });
       }
-    } else {
-      if (state.isPdfMode) {
-        state.pages = new Array(window.serenePDFReader.numPages).fill('');
-      } else if (contentType === 'html') {
-        state.pages = window.serenePaginator.paginateHtml(textToPaginate, readingContainerEl, paginateOptions);
-      } else {
-        state.pages = window.serenePaginator.paginate(textToPaginate, readingContainerEl, paginateOptions);
+
+      if (state.pages.length > 0 && state.readingMode !== 'scroll') {
+        if (Number.isInteger(target)) state.currentPage = target;
+        else if (target === 'end') state.currentPage = state.pages.length - 1;
+        else if (!isInitialLoad && preservePosition && percentage > 0) state.currentPage = Math.floor(percentage * state.pages.length);
+        else if (isInitialLoad && state.currentBook.pagePercentage !== undefined) state.currentPage = Math.floor(state.currentBook.pagePercentage * state.pages.length);
+        else state.currentPage = 0;
       }
+      state.currentPage = Math.min(Math.max(0, state.currentPage), Math.max(0, state.pages.length - 1));
+    } catch (error) {
+      console.error('Falha ao preparar capítulo:', error);
+      state.pages = [`<div class="text-center py-8"><p class="font-bold mb-2">Não foi possível abrir este capítulo.</p><p class="text-sm opacity-70">${escapeUI(error.message || 'Erro desconhecido')}</p></div>`];
+      state.currentPage = 0;
+      showToast('Erro ao abrir capítulo: ' + error.message, 'error');
+    } finally {
+      if (runId !== paginationRunId) return;
+      state.isPaginating = false;
+      pageContentEl.removeAttribute('aria-busy');
+      prevBtn.disabled = false;
+      nextBtn.disabled = false;
+      renderCurrentPage();
     }
-
-    if (state.pages.length > 0 && state.readingMode !== 'scroll') {
-       if (!isInitialLoad && percentage > 0) {
-         state.currentPage = Math.floor(percentage * state.pages.length);
-       } else if (isInitialLoad && state.currentBook && state.currentBook.pagePercentage !== undefined) {
-         // Preservar 100% o texto exato da página baseado na porcentagem (previne bugs ao alterar tamanho de tela)
-         state.currentPage = Math.floor(state.currentBook.pagePercentage * state.pages.length);
-       }
-    }
-
-    if (state.currentPage >= state.pages.length) {
-      state.currentPage = Math.max(0, state.pages.length - 1);
-    }
-
-    renderCurrentPage();
   }
 
   function repairRenderedPageOverflow() {
@@ -544,6 +639,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function renderCurrentPage() {
+    const currentRenderId = ++renderRunId;
     const transition = state.pageTransition || 'none';
     if (transition === 'none') {
       pageContentEl.style.transition = 'none';
@@ -560,6 +656,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     setTimeout(async () => {
+      if (currentRenderId !== renderRunId || state.isPaginating) return;
       if (state.isPdfMode) {
         const pageNum = state.currentPage + 1;
         if (state.readingMode === 'scroll') {
@@ -603,6 +700,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         applySearchHighlight();
         applyHighlights();
       }
+
+      if (currentRenderId !== renderRunId || state.isPaginating) return;
 
       const total = state.pages.length;
       const currentNum = state.currentPage + 1;
@@ -674,7 +773,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // --- Navegação entre Páginas ---
-  function nextPage() {
+  async function nextPage() {
+    if (state.isPaginating) return;
     state.navDirection = 1;
     if (state.currentPage < state.pages.length - 1) {
       state.currentPage++;
@@ -682,11 +782,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (state.currentBook && state.currentBook.chapters && state.currentChapter < state.currentBook.chapters.length - 1) {
       state.currentChapter++;
       state.currentPage = 0;
-      paginateAndRender();
+      await paginateAndRender(false, false, 'start');
+      renderTocDrawer();
     }
   }
 
-  function prevPage() {
+  async function prevPage() {
+    if (state.isPaginating) return;
     state.navDirection = -1;
     if (state.currentPage > 0) {
       state.currentPage--;
@@ -694,7 +796,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (state.currentBook && state.currentBook.chapters && state.currentChapter > 0) {
       state.currentChapter--;
       state.currentPage = 0;
-      paginateAndRender();
+      await paginateAndRender(false, false, 'end');
+      renderTocDrawer();
     }
   }
 
@@ -1400,11 +1503,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         title: parsedEPUB.title || title,
         author: parsedEPUB.author || 'Desconhecido',
         format: 'epub',
-        content: parsedEPUB.rawText,
+        // Mantém uma única cópia compactada e extrai apenas o capítulo aberto.
+        content: buffer,
         cover: parsedEPUB.cover,
         contentType: parsedEPUB.contentType || 'html',
         toc: parsedEPUB.toc,
-        chapters: parsedEPUB.chapters
+        chapters: parsedEPUB.chapters,
+        epubLazy: true,
+        sourceSize: file.size || buffer.byteLength
       };
     } else if (ext === 'pdf') {
       const buffer = await file.arrayBuffer();
@@ -1750,7 +1856,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  window.sereneTTS.onEnd = () => {
+  window.sereneTTS.onEnd = async () => {
     if (!window.sereneTTS.autoContinue) {
       // Sem leitura contínua: limpar destaque ao terminar
       pageContentEl.querySelectorAll('.tts-word-active').forEach(el => el.classList.remove('tts-word-active'));
@@ -1778,8 +1884,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Avança para o próximo capítulo
       state.currentChapter++;
       state.currentPage = 0;
-      paginateAndRender();
-      setTimeout(speakNext, 600);
+      await paginateAndRender(false, false, 'start');
+      setTimeout(speakNext, 120);
     } else {
       // Fim do livro
       window.sereneTTS.autoContinue = false;
@@ -1952,13 +2058,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     `).join('');
   }
 
-  window.jumpToBookmark = (pageIndex, chapterIndex) => {
+  window.jumpToBookmark = async (pageIndex, chapterIndex) => {
     state.currentChapter = chapterIndex;
     state.currentPage = pageIndex;
     if (state.isPdfMode) {
       renderCurrentPage();
     } else {
-      paginateAndRender();
+      await paginateAndRender(false, false, Number(pageIndex));
     }
   };
 
@@ -2078,11 +2184,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 title: parsed.title || dl.title,
                 author: parsed.author || dl.author,
                 format: 'epub',
-                content: parsed.rawText,
+                content: dl.arrayBuffer,
                 cover: parsed.cover || dl.cover,
                 contentType: parsed.contentType || 'html',
                 toc: parsed.toc,
-                chapters: parsed.chapters
+                chapters: parsed.chapters,
+                epubLazy: true,
+                sourceSize: dl.arrayBuffer.byteLength
               };
             } else {
               newBookData = {
@@ -2463,25 +2571,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  function renderTocDrawer() {
+  function renderTocDrawer(requestedStart = null) {
     const tocListEl = document.getElementById('toc-list');
     if (!tocListEl) return;
 
     if (state.currentBook && state.currentBook.chapters && state.currentBook.chapters.length > 0) {
-      tocListEl.innerHTML = state.currentBook.chapters.map((ch, idx) => `
+      const chapters = state.currentBook.chapters;
+      const batchSize = 120;
+      const defaultStart = Math.max(0, Math.min(chapters.length - batchSize, state.currentChapter - Math.floor(batchSize / 2)));
+      const start = Math.max(0, Math.min(chapters.length - 1, requestedStart === null ? defaultStart : requestedStart));
+      const end = Math.min(chapters.length, start + batchSize);
+      const items = chapters.slice(start, end).map((ch, offset) => {
+        const idx = start + offset;
+        return `
         <button class="w-full text-left p-2.5 rounded-lg border border-current/10 hover:bg-amber-500/10 text-xs font-medium truncate ${idx === state.currentChapter ? 'bg-amber-500/20 font-bold' : ''}" onclick="window.selectChapter(${idx})">
           ${escapeUI(ch.title || `Capítulo ${idx + 1}`)}
         </button>
-      `).join('');
+      `;
+      }).join('');
+      const before = start > 0 ? `<button class="w-full p-2 text-xs font-bold rounded-lg border border-current/15" onclick="window.renderTocRange(${Math.max(0, start - batchSize)})">↑ Mostrar capítulos anteriores</button>` : '';
+      const after = end < chapters.length ? `<button class="w-full p-2 text-xs font-bold rounded-lg border border-current/15" onclick="window.renderTocRange(${end})">Mostrar próximos capítulos ↓</button>` : '';
+      tocListEl.innerHTML = `<p class="text-[11px] opacity-60 px-1">Capítulos ${start + 1}–${end} de ${chapters.length}</p>${before}${items}${after}`;
     } else {
       tocListEl.innerHTML = '<p class="text-xs opacity-50 italic">Este livro não possui divisões de capítulos separadas.</p>';
     }
   }
 
-  window.selectChapter = (idx) => {
+  window.renderTocRange = (start) => renderTocDrawer(start);
+
+  window.selectChapter = async (idx) => {
+    if (state.isPaginating) return;
     state.currentChapter = idx;
     state.currentPage = 0;
-    paginateAndRender();
+    await paginateAndRender(false, false, 'start');
     if (tocDrawer && tocBackdrop) closeDrawer(tocDrawer, tocBackdrop, true);
   };
 

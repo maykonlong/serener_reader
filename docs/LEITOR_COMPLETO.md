@@ -65,6 +65,7 @@ Esta auditoria separa três coisas: o que um leitor espera, o que já existe no 
 | TTS completo, sons ambientes, OCR, régua, foco, RSVP e leitura biônica | Implementado |
 | Marcadores, destaques, notas, exportação e backup | Implementado |
 | PWA offline e APK Android | Implementado |
+| EPUB grande com capítulos sob demanda e paginação cooperativa | Implementado na versão 2.2 |
 | MOBI, PRC, RTF, ODT, CBR e RAR | Ainda não |
 | Dicionário por seleção | Ainda não |
 | Sincronização real entre aparelhos | Ainda não; há backup manual |

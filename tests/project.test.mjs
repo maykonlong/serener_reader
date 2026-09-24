@@ -27,7 +27,7 @@ test('os modos de leitura semelhantes ao Kindle estão disponíveis', async () =
 test('o service worker usa manifesto de assets locais', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /asset-manifest\.json/);
-  assert.match(worker, /serene-reader-v27/);
+  assert.match(worker, /serene-reader-v28/);
   assert.match(worker, /isMutableAsset/);
   assert.doesNotMatch(worker, /c\s*\|\|\s*caches\.match\('\.\/index\.html'\)/);
 });
@@ -37,7 +37,7 @@ test('o pacote Android protege os dados locais e bloqueia HTTP aberto', async ()
   const gradle = await read('android/app/build.gradle');
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(manifest, /android:usesCleartextTraffic="false"/);
-  assert.match(gradle, /versionName "2\.1\.1"/);
+  assert.match(gradle, /versionName "2\.2\.0"/);
 });
 
 test('o PDF.js usa worker local e uma versão sem a falha conhecida antiga', async () => {
@@ -125,7 +125,7 @@ test('a experiência móvel mantém navegação visível e organiza os ajustes',
   assert.match(app, /setSettingsPanel/);
   assert.match(app, /movedLines/);
   assert.match(pagination, /isVerse/);
-  assert.match(html, /pagination\.js\?v=2\.1\.1/);
+  assert.match(html, /pagination\.js\?v=2\.2\.0/);
 });
 
 test('o PWA e o Android usam a nova identidade de livro aberto', async () => {
@@ -138,4 +138,23 @@ test('o PWA e o Android usam a nova identidade de livro aberto', async () => {
   assert.match(icon, /#D5963B/);
   assert.match(androidIcon, /#FFFDF7/);
   assert.match(androidIcon, /#D5963B/);
+});
+
+test('EPUBs grandes usam capítulos sob demanda e paginação cooperativa', async () => {
+  const app = await read('js/app.js');
+  const parser = await read('js/epub_parser.js');
+  const paginator = await read('js/pagination.js');
+  const storage = await read('js/storage.js');
+
+  assert.match(app, /content: buffer,[\s\S]*epubLazy: true/);
+  assert.match(app, /loadChapter\(state\.currentBook\.content, chapter\)/);
+  assert.match(app, /PAGE_CACHE_LIMIT = 6/);
+  assert.match(parser, /chapterCache: new Map\(\)/);
+  assert.match(parser, /splitLegacyText/);
+  assert.doesNotMatch(parser, /fullTextAccumulator/);
+  assert.match(paginator, /paginateHtmlAsync/);
+  assert.match(paginator, /scheduler\.yield/);
+  assert.match(storage, /const DB_VERSION = 3/);
+  assert.match(storage, /bookFiles/);
+  assert.match(storage, /chapters: Array\.isArray\(bookData\.chapters\)/);
 });

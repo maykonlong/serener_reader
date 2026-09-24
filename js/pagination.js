@@ -293,6 +293,76 @@ class SerenePaginator {
 
     return pages.length > 0 ? pages : ['<p class="text-center opacity-60">Fim do conteúdo.</p>'];
   }
+
+  async yieldToBrowser() {
+    if (globalThis.scheduler && typeof globalThis.scheduler.yield === 'function') {
+      await globalThis.scheduler.yield();
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  /**
+   * Paginação cooperativa para capítulos grandes. Processa blocos limitados e
+   * devolve o controle ao navegador entre eles, mantendo toque, rolagem e UI
+   * responsivos mesmo em aparelhos Android modestos.
+   */
+  async paginateHtmlAsync(html, containerEl, options = {}, shouldCancel = () => false) {
+    if (!html || html.length < 70000) return this.paginateHtml(html, containerEl, options);
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const blocks = Array.from(doc.body.childNodes).map(node => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const value = node.textContent.trim();
+        return value ? `<p>${this.escapeHtml(value)}</p>` : '';
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE || /^(script|style)$/i.test(node.tagName)) return '';
+      return node.outerHTML || '';
+    }).filter(Boolean);
+
+    const pages = [];
+    let chunk = [];
+    let chunkChars = 0;
+    const flush = async () => {
+      if (!chunk.length || shouldCancel()) return;
+      pages.push(...this.paginateHtml(chunk.join(''), containerEl, options));
+      chunk = [];
+      chunkChars = 0;
+      await this.yieldToBrowser();
+    };
+
+    for (const block of blocks) {
+      if (shouldCancel()) return [];
+      if (chunk.length && (chunk.length >= 45 || chunkChars + block.length > 48000)) await flush();
+      chunk.push(block);
+      chunkChars += block.length;
+    }
+    await flush();
+    return pages.length ? pages : this.paginateHtml(html, containerEl, options);
+  }
+
+  async paginateAsync(text, containerEl, options = {}, shouldCancel = () => false) {
+    if (!text || text.length < 70000) return this.paginate(text, containerEl, options);
+    const paragraphs = text.split(/\n\s*\n/).filter(part => part.trim());
+    const pages = [];
+    let chunk = [];
+    let chunkChars = 0;
+    const flush = async () => {
+      if (!chunk.length || shouldCancel()) return;
+      pages.push(...this.paginate(chunk.join('\n\n'), containerEl, options));
+      chunk = [];
+      chunkChars = 0;
+      await this.yieldToBrowser();
+    };
+    for (const paragraph of paragraphs) {
+      if (shouldCancel()) return [];
+      if (chunk.length && (chunk.length >= 50 || chunkChars + paragraph.length > 42000)) await flush();
+      chunk.push(paragraph);
+      chunkChars += paragraph.length + 2;
+    }
+    await flush();
+    return pages.length ? pages : this.paginate(text, containerEl, options);
+  }
 }
 
 window.serenePaginator = new SerenePaginator();
